@@ -5,6 +5,7 @@ import { Tag, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, Percent }
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { useConfirm } from '@/components/confirm-dialog';
+import { PriceCsvImport } from '@/components/price-csv-import';
 
 type PriceRow = {
   id: string;
@@ -207,14 +208,17 @@ export default function StandardPricesPage() {
 
   return (
     <div>
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-rose-600">
-          <Tag className="h-5 w-5 text-white" strokeWidth={2.2} />
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-rose-600">
+            <Tag className="h-5 w-5 text-white" strokeWidth={2.2} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-stone-900">Standardpriser</h1>
+            <p className="text-sm text-stone-500">{totalCount} priser i alt</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-stone-900">Standardpriser</h1>
-          <p className="text-sm text-stone-500">{totalCount} priser i alt</p>
-        </div>
+        <PriceCsvImport onImported={fetchRows} />
       </div>
 
       <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5">
@@ -360,8 +364,9 @@ export default function StandardPricesPage() {
       )}
 
       {offerModalRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-stone-900/40 p-4 backdrop-blur-sm" onClick={closeOfferModal}>
-         <div className="my-8 w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/40 backdrop-blur-sm" onClick={closeOfferModal}>
+         <div className="flex min-h-full items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100">
                 <Percent size={16} className="text-emerald-600" />
@@ -407,6 +412,7 @@ export default function StandardPricesPage() {
               </div>
             </div>
           </div>
+         </div>
         </div>
       )}
     </div>

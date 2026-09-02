@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { ToastProvider } from "@/components/toast-provider";
 import { ConfirmProvider } from "@/components/confirm-dialog";
+import { siteUrl, siteDescription } from "@/lib/site-config";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,8 +17,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LifeSort Admin",
-  description: "Admin panel for LifeSort",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "LifeSort — Dit liv, samlet ét sted",
+    template: "%s — LifeSort",
+  },
+  description: siteDescription,
+  openGraph: {
+    title: "LifeSort — Dit liv, samlet ét sted",
+    description: siteDescription,
+    url: siteUrl,
+    siteName: "LifeSort",
+    locale: "da_DK",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LifeSort — Dit liv, samlet ét sted",
+    description: siteDescription,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -29,6 +48,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ConfirmProvider>
           <ToastProvider>{children}</ToastProvider>
         </ConfirmProvider>
+        <Analytics />
       </body>
     </html>
   );
