@@ -5,7 +5,8 @@ import { Apple, Smartphone, X, CheckCircle2 } from 'lucide-react';
 
 type Platform = 'ios' | 'android';
 
-export function WaitlistCta() {
+export function WaitlistCta({ variant = 'light' }: { variant?: 'light' | 'dark' }) {
+  const isDark = variant === 'dark';
   const [activePlatform, setActivePlatform] = useState<Platform | null>(null);
   const [email, setEmail] = useState('');
   const [company, setCompany] = useState(''); // honeypot — real visitors never fill this in
@@ -55,14 +56,22 @@ export function WaitlistCta() {
       <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <button
           onClick={() => openModal('ios')}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-stone-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 sm:w-auto"
+          className={
+            isDark
+              ? 'flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-rose-500 sm:w-auto'
+              : 'flex w-full items-center justify-center gap-2 rounded-xl bg-stone-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 sm:w-auto'
+          }
         >
           <Apple size={16} />
           Hent til iOS
         </button>
         <button
           onClick={() => openModal('android')}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-6 py-3 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 sm:w-auto"
+          className={
+            isDark
+              ? 'flex w-full items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/10 sm:w-auto'
+              : 'flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-6 py-3 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 sm:w-auto'
+          }
         >
           <Smartphone size={16} />
           Hent til Android
