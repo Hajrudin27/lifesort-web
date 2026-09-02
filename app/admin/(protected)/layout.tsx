@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Tag, BookOpen, Percent, Inbox, Users } from 'lucide-react';
+import { LayoutDashboard, Tag, BookOpen, Percent, Inbox, Users, Milestone } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import SignOutButton from './sign-out-button';
 
@@ -46,6 +46,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
         <nav className="flex-1 space-y-1">
           <NavLink href="/admin/dashboard" icon={<LayoutDashboard size={17} />} label="Oversigt" />
+
+          <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
+            Projekt
+          </p>
+          <NavLink href="/admin/timeline" icon={<Milestone size={17} />} label="Tidslinje" />
 
           <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
             Mad
