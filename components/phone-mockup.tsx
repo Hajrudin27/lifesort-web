@@ -7,7 +7,7 @@ import { Utensils, Wallet, HeartPulse } from 'lucide-react';
  */
 export function PhoneMockup() {
   return (
-    <div className="relative mx-auto w-[260px] sm:w-[280px]">
+    <div className="relative mx-auto w-[260px] [animation:float_6s_ease-in-out_infinite] sm:w-[280px]">
       {/* Phone frame */}
       <div className="rounded-[2.5rem] border-[6px] border-stone-800 bg-stone-800 shadow-2xl shadow-black/40">
         <div className="overflow-hidden rounded-[2rem] bg-[#FBF7F1]">

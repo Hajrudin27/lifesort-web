@@ -8,6 +8,7 @@ import { useConfirm } from '@/components/confirm-dialog';
 import { PriceCsvImport } from '@/components/price-csv-import';
 import { logActivity } from '@/lib/activity-log';
 import { useAdminUser } from '@/components/admin-user-context';
+import { SkeletonRows } from '@/components/skeleton-rows';
 
 type PriceRow = {
   id: string;
@@ -240,27 +241,27 @@ export default function StandardPricesPage() {
             <Tag className="h-5 w-5 text-white" strokeWidth={2.2} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-stone-900">Standardpriser</h1>
-            <p className="text-sm text-stone-500">{totalCount} priser i alt</p>
+            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Standardpriser</h1>
+            <p className="text-sm text-stone-500 dark:text-stone-400">{totalCount} priser i alt</p>
           </div>
         </div>
         <PriceCsvImport onImported={fetchRows} />
       </div>
 
-      <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5">
+      <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-stone-500">Produkt</label>
+            <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Produkt</label>
             <input value={newProduct} onChange={(e) => setNewProduct(e.target.value)}
-              className="rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
+              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-rose-900/30"
               placeholder="Fx Mælk 1L" />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-stone-500">Butik</label>
+            <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Butik</label>
             {!isAddingNewStore ? (
               <select value={newStore} onChange={(e) => handleStoreSelect(e.target.value)}
-                className="rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100">
+                className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-rose-900/30">
                 <option value="" disabled>Vælg butik...</option>
                 {stores.map((s) => <option key={s} value={s}>{s}</option>)}
                 <option value={NEW_STORE_VALUE}>+ Ny butik...</option>
@@ -268,28 +269,28 @@ export default function StandardPricesPage() {
             ) : (
               <div className="flex items-center gap-2">
                 <input value={newStoreInput} onChange={(e) => setNewStoreInput(e.target.value)}
-                  className="rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
+                  className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-rose-900/30"
                   placeholder="Ny butiks navn" autoFocus />
                 <button type="button" onClick={() => { setIsAddingNewStore(false); setNewStoreInput(''); }}
-                  className="text-xs font-medium text-stone-400 hover:text-stone-600">Fortryd</button>
+                  className="text-xs font-medium text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300">Fortryd</button>
               </div>
             )}
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-stone-500">Pris (kr.)</label>
+            <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Pris (kr.)</label>
             <input type="number" step="0.01" value={newPrice} onChange={(e) => setNewPrice(e.target.value)}
-              className="w-28 rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
+              className="w-28 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-rose-900/30"
               placeholder="0.00" />
           </div>
 
           <button onClick={handleSave} disabled={!canSave}
-            className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-30">
+            className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-30 dark:bg-rose-600 dark:hover:bg-rose-500">
             <Plus size={15} />
             {editingId ? 'Gem ændring' : 'Tilføj pris'}
           </button>
           {editingId && (
-            <button onClick={resetForm} className="text-sm font-medium text-stone-400 hover:text-stone-600">Annullér</button>
+            <button onClick={resetForm} className="text-sm font-medium text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300">Annullér</button>
           )}
         </div>
       </div>
@@ -298,18 +299,18 @@ export default function StandardPricesPage() {
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Søg produktnavn..."
-            className="w-full rounded-xl border border-stone-200 bg-white py-2 pl-10 pr-3 text-sm outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100" />
+            className="w-full rounded-xl border border-stone-200 bg-white py-2 pl-10 pr-3 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:focus:ring-rose-900/30" />
         </div>
         <select value={storeFilter} onChange={(e) => setStoreFilter(e.target.value)}
-          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100">
+          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:focus:ring-rose-900/30">
           <option value="all">Alle butikker</option>
           {stores.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm shadow-stone-900/5">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
         <table className="w-full text-sm">
-          <thead className="border-b border-stone-100 bg-stone-50/50 text-left text-xs font-semibold text-stone-500">
+          <thead className="border-b border-stone-100 bg-stone-50/50 text-left text-xs font-semibold text-stone-500 dark:border-stone-800 dark:bg-stone-800/50 dark:text-stone-400">
             <tr>
               <th className="px-5 py-3">Produkt</th>
               <th className="px-5 py-3">Butik</th>
@@ -318,17 +319,17 @@ export default function StandardPricesPage() {
               <th className="px-5 py-3"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-stone-100">
+          <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
             {isLoading ? (
               <SkeletonRows columns={5} />
             ) : rows.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-5 py-12 text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 dark:bg-stone-800">
                     <Tag className="h-5 w-5 text-stone-400" />
                   </div>
-                  <p className="mt-3 text-sm font-medium text-stone-500">Ingen priser fundet</p>
-                  <p className="text-xs text-stone-400">Prøv en anden søgning, eller tilføj en ny pris ovenfor.</p>
+                  <p className="mt-3 text-sm font-medium text-stone-500 dark:text-stone-400">Ingen priser fundet</p>
+                  <p className="text-xs text-stone-400 dark:text-stone-500">Prøv en anden søgning, eller tilføj en ny pris ovenfor.</p>
                 </td>
               </tr>
             ) : (
@@ -336,33 +337,33 @@ export default function StandardPricesPage() {
                 const offer = offersByPriceId[row.id];
                 const isOfferActive = offer && offer.valid_from <= todayStr() && offer.valid_to >= todayStr();
                 return (
-                  <tr key={row.id} className="transition hover:bg-stone-50/50">
-                    <td className="px-5 py-3.5 font-medium text-stone-900">{row.product_name}</td>
-                    <td className="px-5 py-3.5 text-stone-600">{row.store}</td>
-                    <td className="px-5 py-3.5 text-stone-600">{row.price.toFixed(2)} kr.</td>
+                  <tr key={row.id} className="transition hover:bg-stone-50/50 dark:hover:bg-stone-800/50">
+                    <td className="px-5 py-3.5 font-medium text-stone-900 dark:text-stone-100">{row.product_name}</td>
+                    <td className="px-5 py-3.5 text-stone-600 dark:text-stone-400">{row.store}</td>
+                    <td className="px-5 py-3.5 text-stone-600 dark:text-stone-400">{row.price.toFixed(2)} kr.</td>
                     <td className="px-5 py-3.5">
                       {offer ? (
                         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          isOfferActive ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                          isOfferActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
                         }`}>
                           {offer.offer_price.toFixed(2)} kr. · {isOfferActive ? 'Aktiv' : 'Kommende'}
                         </span>
                       ) : (
-                        <span className="text-xs text-stone-400">Intet tilbud</span>
+                        <span className="text-xs text-stone-400 dark:text-stone-500">Intet tilbud</span>
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => openOfferModal(row)} title={offer ? 'Redigér tilbud' : 'Sæt tilbud'}
-                          className="rounded-lg p-1.5 text-emerald-600 transition hover:bg-emerald-50">
+                          className="rounded-lg p-1.5 text-emerald-600 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">
                           <Percent size={15} />
                         </button>
                         <button onClick={() => startEdit(row)} title="Redigér"
-                          className="rounded-lg p-1.5 text-stone-500 transition hover:bg-stone-100">
+                          className="rounded-lg p-1.5 text-stone-500 transition hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800">
                           <Pencil size={15} />
                         </button>
                         <button onClick={() => handleDelete(row.id)} title="Slet"
-                          className="rounded-lg p-1.5 text-red-500 transition hover:bg-red-50">
+                          className="rounded-lg p-1.5 text-red-500 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10">
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -378,12 +379,12 @@ export default function StandardPricesPage() {
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-center gap-3 text-sm">
           <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
-            className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-30">
+            className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-30 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800">
             <ChevronLeft size={14} /> Forrige
           </button>
-          <span className="text-stone-500">Side {page + 1} af {totalPages}</span>
+          <span className="text-stone-500 dark:text-stone-400">Side {page + 1} af {totalPages}</span>
           <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-            className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-30">
+            className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-30 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800">
             Næste <ChevronRight size={14} />
           </button>
         </div>
@@ -392,33 +393,33 @@ export default function StandardPricesPage() {
       {offerModalRow && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/40 backdrop-blur-sm" onClick={closeOfferModal}>
          <div className="flex min-h-full items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-stone-900" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100">
-                <Percent size={16} className="text-emerald-600" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-500/15">
+                <Percent size={16} className="text-emerald-600 dark:text-emerald-400" />
               </div>
-              <h2 className="text-lg font-bold text-stone-900">Sæt tilbud</h2>
+              <h2 className="text-lg font-bold text-stone-900 dark:text-stone-100">Sæt tilbud</h2>
             </div>
-            <p className="mt-3 text-sm text-stone-600">{offerModalRow.product_name} · {offerModalRow.store}</p>
-            <p className="text-xs text-stone-400">Normalpris: {offerModalRow.price.toFixed(2)} kr.</p>
+            <p className="mt-3 text-sm text-stone-600 dark:text-stone-400">{offerModalRow.product_name} · {offerModalRow.store}</p>
+            <p className="text-xs text-stone-400 dark:text-stone-500">Normalpris: {offerModalRow.price.toFixed(2)} kr.</p>
 
             <div className="mt-4 flex flex-col gap-3">
               <div>
-                <label className="text-xs font-semibold text-stone-500">Tilbudspris (kr.)</label>
+                <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Tilbudspris (kr.)</label>
                 <input type="number" step="0.01" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-emerald-900/30"
                   placeholder="0.00" autoFocus />
               </div>
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="text-xs font-semibold text-stone-500">Gyldig fra</label>
+                  <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Gyldig fra</label>
                   <input type="date" value={offerFrom} onChange={(e) => setOfferFrom(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" />
+                    className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-emerald-900/30" />
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs font-semibold text-stone-500">Gyldig til</label>
+                  <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Gyldig til</label>
                   <input type="date" value={offerTo} onChange={(e) => setOfferTo(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" />
+                    className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-emerald-900/30" />
                 </div>
               </div>
             </div>
@@ -426,11 +427,11 @@ export default function StandardPricesPage() {
             <div className="mt-6 flex items-center justify-between">
               <div>
                 {offersByPriceId[offerModalRow.id] && (
-                  <button onClick={handleRemoveOffer} className="text-sm font-medium text-red-600 hover:underline">Fjern tilbud</button>
+                  <button onClick={handleRemoveOffer} className="text-sm font-medium text-red-600 hover:underline dark:text-red-400">Fjern tilbud</button>
                 )}
               </div>
               <div className="flex gap-2">
-                <button onClick={closeOfferModal} className="rounded-xl border border-stone-200 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50">Annullér</button>
+                <button onClick={closeOfferModal} className="rounded-xl border border-stone-200 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800">Annullér</button>
                 <button onClick={handleSaveOffer} disabled={!canSaveOffer || isSavingOffer}
                   className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-40">
                   {isSavingOffer ? 'Gemmer...' : 'Gem tilbud'}
@@ -442,21 +443,5 @@ export default function StandardPricesPage() {
         </div>
       )}
     </div>
-  );
-}
-
-function SkeletonRows({ columns }: { columns: number }) {
-  return (
-    <>
-      {Array.from({ length: 6 }).map((_, i) => (
-        <tr key={i}>
-          {Array.from({ length: columns }).map((_, j) => (
-            <td key={j} className="px-5 py-4">
-              <div className="h-3.5 w-full max-w-[120px] animate-pulse rounded bg-stone-100" />
-            </td>
-          ))}
-        </tr>
-      ))}
-    </>
   );
 }

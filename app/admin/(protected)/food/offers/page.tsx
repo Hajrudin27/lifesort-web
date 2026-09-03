@@ -7,6 +7,7 @@ import { useToast } from '@/components/toast-provider';
 import { useConfirm } from '@/components/confirm-dialog';
 import { logActivity } from '@/lib/activity-log';
 import { useAdminUser } from '@/components/admin-user-context';
+import { SkeletonRows } from '@/components/skeleton-rows';
 
 type OfferRow = {
   id: string;
@@ -112,9 +113,9 @@ export default function OffersOverviewPage() {
 
   const statusBadge = (status: 'active' | 'upcoming' | 'expired') => {
     const styles = {
-      active: 'bg-emerald-100 text-emerald-700',
-      upcoming: 'bg-amber-100 text-amber-700',
-      expired: 'bg-stone-100 text-stone-500',
+      active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
+      upcoming: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
+      expired: 'bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400',
     };
     const labels = { active: 'Aktiv', upcoming: 'Kommende', expired: 'Udløbet' };
     return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status]}`}>{labels[status]}</span>;
@@ -127,8 +128,8 @@ export default function OffersOverviewPage() {
           <Percent className="h-5 w-5 text-white" strokeWidth={2.2} />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Ugens tilbud</h1>
-          <p className="text-sm text-stone-500">{totalCount} tilbud i alt · Nye tilbud oprettes fra Standardpriser</p>
+          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Ugens tilbud</h1>
+          <p className="text-sm text-stone-500 dark:text-stone-400">{totalCount} tilbud i alt · Nye tilbud oprettes fra Standardpriser</p>
         </div>
       </div>
 
@@ -136,26 +137,26 @@ export default function OffersOverviewPage() {
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Søg produktnavn..."
-            className="w-full rounded-xl border border-stone-200 bg-white py-2 pl-10 pr-3 text-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" />
+            className="w-full rounded-xl border border-stone-200 bg-white py-2 pl-10 pr-3 text-sm text-stone-900 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:focus:ring-emerald-900/30" />
         </div>
         <select value={storeFilter} onChange={(e) => setStoreFilter(e.target.value)}
-          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100">
+          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:focus:ring-emerald-900/30">
           <option value="all">Alle butikker</option>
           {stores.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <div className="flex overflow-hidden rounded-xl border border-stone-200 bg-white text-sm">
+        <div className="flex overflow-hidden rounded-xl border border-stone-200 bg-white text-sm dark:border-stone-700 dark:bg-stone-900">
           {(['active', 'upcoming', 'expired', 'all'] as StatusFilter[]).map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-3 py-2 font-medium transition ${statusFilter === s ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-50'}`}>
+              className={`px-3 py-2 font-medium transition ${statusFilter === s ? 'bg-stone-900 text-white dark:bg-emerald-600' : 'text-stone-600 hover:bg-stone-50 dark:text-stone-300 dark:hover:bg-stone-800'}`}>
               {s === 'active' ? 'Aktive' : s === 'upcoming' ? 'Kommende' : s === 'expired' ? 'Udløbne' : 'Alle'}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm shadow-stone-900/5">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
         <table className="w-full text-sm">
-          <thead className="border-b border-stone-100 bg-stone-50/50 text-left text-xs font-semibold text-stone-500">
+          <thead className="border-b border-stone-100 bg-stone-50/50 text-left text-xs font-semibold text-stone-500 dark:border-stone-800 dark:bg-stone-800/50 dark:text-stone-400">
             <tr>
               <th className="px-5 py-3">Produkt</th>
               <th className="px-5 py-3">Butik</th>
@@ -166,29 +167,29 @@ export default function OffersOverviewPage() {
               <th className="px-5 py-3"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-stone-100">
+          <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
             {isLoading ? (
-              <tr><td colSpan={7} className="px-5 py-8 text-center text-stone-400">Indlæser...</td></tr>
+              <SkeletonRows columns={7} />
             ) : rows.length === 0 ? (
-              <tr><td colSpan={7} className="px-5 py-8 text-center text-stone-400">Ingen tilbud fundet.</td></tr>
+              <tr><td colSpan={7} className="px-5 py-8 text-center text-stone-400 dark:text-stone-500">Ingen tilbud fundet.</td></tr>
             ) : (
               rows.map((row) => {
                 if (!row.standard_price) return null;
                 const status = getStatus(row);
                 const savingsPercent = Math.round((1 - row.offer_price / row.standard_price.price) * 100);
                 return (
-                  <tr key={row.id} className="transition hover:bg-stone-50/50">
-                    <td className="px-5 py-3.5 font-medium text-stone-900">{row.standard_price.product_name}</td>
-                    <td className="px-5 py-3.5 text-stone-600">{row.standard_price.store}</td>
-                    <td className="px-5 py-3.5 text-stone-400 line-through">{row.standard_price.price.toFixed(2)} kr.</td>
-                    <td className="px-5 py-3.5 font-semibold text-stone-900">
+                  <tr key={row.id} className="transition hover:bg-stone-50/50 dark:hover:bg-stone-800/50">
+                    <td className="px-5 py-3.5 font-medium text-stone-900 dark:text-stone-100">{row.standard_price.product_name}</td>
+                    <td className="px-5 py-3.5 text-stone-600 dark:text-stone-400">{row.standard_price.store}</td>
+                    <td className="px-5 py-3.5 text-stone-400 line-through dark:text-stone-500">{row.standard_price.price.toFixed(2)} kr.</td>
+                    <td className="px-5 py-3.5 font-semibold text-stone-900 dark:text-stone-100">
                       {row.offer_price.toFixed(2)} kr.
-                      {savingsPercent > 0 && <span className="ml-2 text-xs font-normal text-emerald-600">-{savingsPercent}%</span>}
+                      {savingsPercent > 0 && <span className="ml-2 text-xs font-normal text-emerald-600 dark:text-emerald-400">-{savingsPercent}%</span>}
                     </td>
-                    <td className="px-5 py-3.5 text-xs text-stone-500">{row.valid_from} → {row.valid_to}</td>
+                    <td className="px-5 py-3.5 text-xs text-stone-500 dark:text-stone-400">{row.valid_from} → {row.valid_to}</td>
                     <td className="px-5 py-3.5">{statusBadge(status)}</td>
                     <td className="px-5 py-3.5 text-right">
-                      <button onClick={() => handleDelete(row)} title="Slet" className="rounded-lg p-1.5 text-red-500 transition hover:bg-red-50">
+                      <button onClick={() => handleDelete(row)} title="Slet" className="rounded-lg p-1.5 text-red-500 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10">
                         <Trash2 size={15} />
                       </button>
                     </td>
@@ -203,12 +204,12 @@ export default function OffersOverviewPage() {
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-center gap-3 text-sm">
           <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
-            className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-30">
+            className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-30 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800">
             <ChevronLeft size={14} /> Forrige
           </button>
-          <span className="text-stone-500">Side {page + 1} af {totalPages}</span>
+          <span className="text-stone-500 dark:text-stone-400">Side {page + 1} af {totalPages}</span>
           <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-            className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-30">
+            className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-30 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800">
             Næste <ChevronRight size={14} />
           </button>
         </div>

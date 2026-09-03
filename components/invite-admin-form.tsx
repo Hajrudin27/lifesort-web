@@ -45,27 +45,27 @@ export function InviteAdminForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mt-6 flex flex-wrap items-end gap-3 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5">
+    <form onSubmit={handleSubmit} className="mt-6 flex flex-wrap items-end gap-3 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-stone-500">Navn</label>
+        <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Navn</label>
         <input value={fullName} onChange={(e) => setFullName(e.target.value)}
-          className="rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-stone-400 focus:ring-4 focus:ring-stone-100"
+          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-stone-400 focus:ring-4 focus:ring-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-stone-700/30"
           placeholder="Fx Walid" />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-stone-500">Email</label>
+        <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Email</label>
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-          className="rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-stone-400 focus:ring-4 focus:ring-stone-100"
+          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-stone-400 focus:ring-4 focus:ring-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-stone-700/30"
           placeholder="navn@email.dk" />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-stone-500">Rolle</label>
+        <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Rolle</label>
         <input value={role} onChange={(e) => setRole(e.target.value)}
-          className="w-28 rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-stone-400 focus:ring-4 focus:ring-stone-100"
+          className="w-28 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-stone-400 focus:ring-4 focus:ring-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-stone-700/30"
           placeholder="owner" />
       </div>
       <button type="submit" disabled={!canSubmit || isSubmitting}
-        className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-40">
+        className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-40 dark:bg-stone-700 dark:hover:bg-stone-600">
         <UserPlus size={15} />
         {isSubmitting ? 'Inviterer...' : 'Inviter admin'}
       </button>

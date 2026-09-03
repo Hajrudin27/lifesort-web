@@ -59,11 +59,11 @@ const ACTION_ICON: Record<ActivityAction, typeof Plus> = {
 };
 
 const ACTION_STYLE: Record<ActivityAction, string> = {
-  created: 'bg-emerald-100 text-emerald-600',
-  updated: 'bg-sky-100 text-sky-600',
-  deleted: 'bg-rose-100 text-rose-600',
-  replied: 'bg-violet-100 text-violet-600',
-  invited: 'bg-amber-100 text-amber-600',
+  created: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400',
+  updated: 'bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-400',
+  deleted: 'bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400',
+  replied: 'bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400',
+  invited: 'bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400',
 };
 
 const AVATAR_PALETTE = ['bg-rose-500', 'bg-sky-500', 'bg-violet-500', 'bg-amber-500', 'bg-emerald-500'];
@@ -182,24 +182,24 @@ export default function ActivityPage() {
           <Activity className="h-5 w-5 text-white" strokeWidth={2.2} />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Aktivitet</h1>
-          <p className="text-sm text-stone-500">Alt hvad der sker i admin-panelet, ét sted</p>
+          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Aktivitet</h1>
+          <p className="text-sm text-stone-500 dark:text-stone-400">Alt hvad der sker i admin-panelet, ét sted</p>
         </div>
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
         <button onClick={() => setActorFilter('all')}
-          className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${actorFilter === 'all' ? 'bg-stone-900 text-white' : 'border border-stone-200 bg-white text-stone-600 hover:bg-stone-50'}`}>
+          className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${actorFilter === 'all' ? 'bg-stone-900 text-white dark:bg-stone-700' : 'border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800'}`}>
           Alle
         </button>
         {actors.map((a) => (
           <button key={a} onClick={() => setActorFilter(a)}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${actorFilter === a ? 'bg-stone-900 text-white' : 'border border-stone-200 bg-white text-stone-600 hover:bg-stone-50'}`}>
+            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${actorFilter === a ? 'bg-stone-900 text-white dark:bg-stone-700' : 'border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800'}`}>
             {a}
           </button>
         ))}
         <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value as ActivityEntityType | 'all')}
-          className="ml-auto rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100">
+          className="ml-auto rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-900 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:focus:ring-sky-900/30">
           <option value="all">Alle typer</option>
           <option value="price">Priser</option>
           <option value="offer">Tilbud</option>
@@ -213,14 +213,14 @@ export default function ActivityPage() {
       <div className="mt-6 flex flex-col gap-2">
         {isLoading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-2xl bg-stone-100" />
+            <div key={i} className="h-16 animate-pulse rounded-2xl bg-stone-100 dark:bg-stone-800" />
           ))
         ) : groups.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100">
+          <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center dark:border-stone-800 dark:bg-stone-900">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 dark:bg-stone-800">
               <Activity className="h-5 w-5 text-stone-400" />
             </div>
-            <p className="mt-3 text-sm font-medium text-stone-500">Ingen aktivitet endnu</p>
+            <p className="mt-3 text-sm font-medium text-stone-500 dark:text-stone-400">Ingen aktivitet endnu</p>
           </div>
         ) : (
           groups.map((group) => {
@@ -231,7 +231,7 @@ export default function ActivityPage() {
             const latest = group.items[0];
 
             return (
-              <div key={group.key} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm shadow-stone-900/5">
+              <div key={group.key} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
                 <div className="flex items-start gap-3">
                   <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${avatarColor(group.actorName)}`}>
                     {initials(group.actorName)}
@@ -239,34 +239,34 @@ export default function ActivityPage() {
 
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
-                      <span className="font-semibold text-stone-900">{group.actorName}</span>
-                      <span className="text-stone-600">{describeGroup(group)}</span>
+                      <span className="font-semibold text-stone-900 dark:text-stone-100">{group.actorName}</span>
+                      <span className="text-stone-600 dark:text-stone-400">{describeGroup(group)}</span>
                       <span className={`ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full ${ACTION_STYLE[group.action]}`}>
                         <ActionIcon size={11} />
                       </span>
                     </div>
 
                     {!isMulti && (
-                      <p className="mt-0.5 flex items-center gap-1.5 text-xs text-stone-500">
+                      <p className="mt-0.5 flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400">
                         <EntityIcon size={12} />
                         {latest.entity_label}
                       </p>
                     )}
 
-                    <p className="mt-1 text-xs text-stone-400">{relativeTime(latest.created_at)}</p>
+                    <p className="mt-1 text-xs text-stone-400 dark:text-stone-500">{relativeTime(latest.created_at)}</p>
 
                     {isMulti && (
                       <button onClick={() => toggleExpanded(group.key)}
-                        className="mt-2 flex items-center gap-1 text-xs font-medium text-sky-600 hover:underline">
+                        className="mt-2 flex items-center gap-1 text-xs font-medium text-sky-600 hover:underline dark:text-sky-400">
                         <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                         {isExpanded ? 'Skjul detaljer' : `Vis alle ${group.items.length}`}
                       </button>
                     )}
 
                     {isMulti && isExpanded && (
-                      <ul className="mt-2 flex flex-col gap-1 border-l-2 border-stone-100 pl-3">
+                      <ul className="mt-2 flex flex-col gap-1 border-l-2 border-stone-100 pl-3 dark:border-stone-800">
                         {group.items.map((item) => (
-                          <li key={item.id} className="flex items-center gap-1.5 text-xs text-stone-500">
+                          <li key={item.id} className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400">
                             <EntityIcon size={11} />
                             {item.entity_label}
                           </li>

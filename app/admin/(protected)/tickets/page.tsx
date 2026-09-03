@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { logActivity } from '@/lib/activity-log';
 import { useAdminUser } from '@/components/admin-user-context';
+import { SkeletonRows } from '@/components/skeleton-rows';
 
 type TicketStatus = 'open' | 'answered' | 'closed';
 
@@ -30,9 +31,9 @@ const STATUS_LABEL: Record<TicketStatus, string> = {
 };
 
 const STATUS_STYLE: Record<TicketStatus, string> = {
-  open: 'bg-amber-100 text-amber-700',
-  answered: 'bg-emerald-100 text-emerald-700',
-  closed: 'bg-stone-200 text-stone-600',
+  open: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
+  answered: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
+  closed: 'bg-stone-200 text-stone-600 dark:bg-stone-800 dark:text-stone-400',
 };
 
 function formatDate(iso: string) {
@@ -172,8 +173,8 @@ export default function TicketsPage() {
           <Inbox className="h-5 w-5 text-white" strokeWidth={2.2} />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Supportsager</h1>
-          <p className="text-sm text-stone-500">{totalCount} sager i alt</p>
+          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Supportsager</h1>
+          <p className="text-sm text-stone-500 dark:text-stone-400">{totalCount} sager i alt</p>
         </div>
       </div>
 
@@ -181,10 +182,10 @@ export default function TicketsPage() {
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Søg navn, email eller emne..."
-            className="w-full rounded-xl border border-stone-200 bg-white py-2 pl-10 pr-3 text-sm outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100" />
+            className="w-full rounded-xl border border-stone-200 bg-white py-2 pl-10 pr-3 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:focus:ring-rose-900/30" />
         </div>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as TicketStatus | 'all')}
-          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100">
+          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:focus:ring-rose-900/30">
           <option value="open">Åbne</option>
           <option value="answered">Besvarede</option>
           <option value="closed">Lukkede</option>
@@ -192,9 +193,9 @@ export default function TicketsPage() {
         </select>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm shadow-stone-900/5">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
         <table className="w-full text-sm">
-          <thead className="border-b border-stone-100 bg-stone-50/50 text-left text-xs font-semibold text-stone-500">
+          <thead className="border-b border-stone-100 bg-stone-50/50 text-left text-xs font-semibold text-stone-500 dark:border-stone-800 dark:bg-stone-800/50 dark:text-stone-400">
             <tr>
               <th className="px-5 py-3">Fra</th>
               <th className="px-5 py-3">Emne</th>
@@ -202,32 +203,32 @@ export default function TicketsPage() {
               <th className="px-5 py-3">Modtaget</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-stone-100">
+          <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
             {isLoading ? (
               <SkeletonRows columns={4} />
             ) : rows.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-5 py-12 text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 dark:bg-stone-800">
                     <Inbox className="h-5 w-5 text-stone-400" />
                   </div>
-                  <p className="mt-3 text-sm font-medium text-stone-500">Ingen supportsager fundet</p>
+                  <p className="mt-3 text-sm font-medium text-stone-500 dark:text-stone-400">Ingen supportsager fundet</p>
                 </td>
               </tr>
             ) : (
               rows.map((row) => (
-                <tr key={row.id} onClick={() => openTicket(row)} className="cursor-pointer transition hover:bg-stone-50/50">
+                <tr key={row.id} onClick={() => openTicket(row)} className="cursor-pointer transition hover:bg-stone-50/50 dark:hover:bg-stone-800/50">
                   <td className="px-5 py-3.5">
-                    <p className="font-medium text-stone-900">{row.name}</p>
-                    <p className="text-xs text-stone-400">{row.email}</p>
+                    <p className="font-medium text-stone-900 dark:text-stone-100">{row.name}</p>
+                    <p className="text-xs text-stone-400 dark:text-stone-500">{row.email}</p>
                   </td>
-                  <td className="max-w-xs truncate px-5 py-3.5 text-stone-600">{row.subject}</td>
+                  <td className="max-w-xs truncate px-5 py-3.5 text-stone-600 dark:text-stone-400">{row.subject}</td>
                   <td className="px-5 py-3.5">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_STYLE[row.status]}`}>
                       {STATUS_LABEL[row.status]}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 text-xs text-stone-400">{formatDate(row.created_at)}</td>
+                  <td className="px-5 py-3.5 text-xs text-stone-400 dark:text-stone-500">{formatDate(row.created_at)}</td>
                 </tr>
               ))
             )}
@@ -238,12 +239,12 @@ export default function TicketsPage() {
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-center gap-3 text-sm">
           <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
-            className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-30">
+            className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-30 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800">
             Forrige
           </button>
-          <span className="text-stone-500">Side {page + 1} af {totalPages}</span>
+          <span className="text-stone-500 dark:text-stone-400">Side {page + 1} af {totalPages}</span>
           <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-            className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-30">
+            className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-30 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800">
             Næste
           </button>
         </div>
@@ -252,15 +253,15 @@ export default function TicketsPage() {
       {activeTicket && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/40 backdrop-blur-sm" onClick={closeModal}>
          <div className="flex min-h-full items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-stone-900" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold text-stone-900">{activeTicket.subject}</h2>
-                <p className="mt-1 flex items-center gap-1.5 text-sm text-stone-500">
+                <h2 className="text-lg font-bold text-stone-900 dark:text-stone-100">{activeTicket.subject}</h2>
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-stone-500 dark:text-stone-400">
                   <Mail size={13} />
                   {activeTicket.name} · {activeTicket.email}
                 </p>
-                <p className="mt-0.5 flex items-center gap-1.5 text-xs text-stone-400">
+                <p className="mt-0.5 flex items-center gap-1.5 text-xs text-stone-400 dark:text-stone-500">
                   <Clock size={12} />
                   {formatDate(activeTicket.created_at)}
                 </p>
@@ -270,16 +271,16 @@ export default function TicketsPage() {
               </span>
             </div>
 
-            <div className="mt-4 rounded-xl bg-stone-50 p-4 text-sm leading-relaxed text-stone-700">
+            <div className="mt-4 rounded-xl bg-stone-50 p-4 text-sm leading-relaxed text-stone-700 dark:bg-stone-800 dark:text-stone-300">
               {activeTicket.message}
             </div>
 
             <div className="mt-4">
-              <label className="text-xs font-semibold text-stone-500">
+              <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">
                 {activeTicket.admin_reply ? 'Svar (redigér)' : 'Skriv svar'}
               </label>
               <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows={4}
-                className="mt-1 w-full rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-emerald-900/30"
                 placeholder="Skriv dit svar her..." />
             </div>
 
@@ -287,25 +288,25 @@ export default function TicketsPage() {
               <div className="flex items-center gap-3">
                 {activeTicket.status !== 'closed' ? (
                   <button onClick={() => handleSetStatus('closed')} disabled={isSaving}
-                    className="flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-stone-700">
+                    className="flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200">
                     <Archive size={14} /> Luk sag
                   </button>
                 ) : (
                   <button onClick={() => handleSetStatus('open')} disabled={isSaving}
-                    className="text-sm font-medium text-stone-500 hover:text-stone-700">
+                    className="text-sm font-medium text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200">
                     Genåbn sag
                   </button>
                 )}
                 {activeTicket.admin_reply && (
                   <button onClick={handleResendEmail} disabled={isResending}
-                    className="flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-stone-700 disabled:opacity-40">
+                    className="flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-stone-700 disabled:opacity-40 dark:text-stone-400 dark:hover:text-stone-200">
                     <RotateCw size={13} />
                     {isResending ? 'Sender...' : 'Gensend email'}
                   </button>
                 )}
               </div>
               <div className="flex gap-2">
-                <button onClick={closeModal} className="rounded-xl border border-stone-200 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50">
+                <button onClick={closeModal} className="rounded-xl border border-stone-200 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800">
                   Annullér
                 </button>
                 <button onClick={handleSaveReply} disabled={replyText.trim().length === 0 || isSaving}
@@ -320,21 +321,5 @@ export default function TicketsPage() {
         </div>
       )}
     </div>
-  );
-}
-
-function SkeletonRows({ columns }: { columns: number }) {
-  return (
-    <>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <tr key={i}>
-          {Array.from({ length: columns }).map((_, j) => (
-            <td key={j} className="px-5 py-4">
-              <div className="h-3.5 w-full max-w-[120px] animate-pulse rounded bg-stone-100" />
-            </td>
-          ))}
-        </tr>
-      ))}
-    </>
   );
 }

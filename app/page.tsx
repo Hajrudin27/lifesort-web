@@ -4,6 +4,7 @@ import { PublicHeader } from '@/components/public-header';
 import { PublicFooter } from '@/components/public-footer';
 import { WaitlistCta } from '@/components/waitlist-cta';
 import { PhoneMockup } from '@/components/phone-mockup';
+import { ScrollReveal } from '@/components/scroll-reveal';
 
 const heroFeatures = [
   { icon: Utensils, title: 'Madplan & indkøb', description: 'Automatisk ugentlig madplan der rammer dit budget, med opskrifter og tilbud fra dine butikker.', tint: 'bg-amber-100 text-amber-600' },
@@ -21,7 +22,8 @@ export default function Home() {
       <main className="flex-1">
         {/* Hero — dark anchor moment */}
         <section className="relative overflow-hidden bg-[#16130F]">
-          <div className="pointer-events-none absolute -top-24 right-0 h-[32rem] w-[32rem] rounded-full bg-rose-600/20 blur-[100px]" />
+          <div className="pointer-events-none absolute -top-24 right-0 h-[32rem] w-[32rem] rounded-full bg-rose-600/20 blur-[100px] [animation:drift_14s_ease-in-out_infinite]" />
+          <div className="pointer-events-none absolute -bottom-32 -left-16 h-[26rem] w-[26rem] rounded-full bg-amber-500/10 blur-[100px] [animation:drift_18s_ease-in-out_infinite_reverse]" />
 
           <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-16 px-6 py-20 sm:py-28 lg:grid-cols-2 lg:py-32">
             <div className="text-center lg:text-left">
@@ -54,44 +56,48 @@ export default function Home() {
         {/* Features */}
         <section className="bg-[#FBF7F1]">
           <div className="mx-auto max-w-5xl px-6 py-20">
-            <h2 className="font-display text-center text-3xl font-semibold text-stone-900 sm:text-4xl">
-              Ti dele af din hverdag. Én app.
-            </h2>
+            <ScrollReveal>
+              <h2 className="font-display text-center text-3xl font-semibold text-stone-900 sm:text-4xl">
+                Ti dele af din hverdag. Én app.
+              </h2>
+            </ScrollReveal>
 
             <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {heroFeatures.map((f) => (
-                <div key={f.title} className="rounded-2xl bg-white p-6">
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${f.tint}`}>
-                    <f.icon className="h-5 w-5" strokeWidth={2.2} />
+              {heroFeatures.map((f, i) => (
+                <ScrollReveal key={f.title} delay={i * 80}>
+                  <div className="rounded-2xl bg-white p-6">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${f.tint}`}>
+                      <f.icon className="h-5 w-5" strokeWidth={2.2} />
+                    </div>
+                    <h3 className="mt-4 text-base font-bold text-stone-900">{f.title}</h3>
+                    <p className="mt-1.5 text-sm text-stone-600">{f.description}</p>
                   </div>
-                  <h3 className="mt-4 text-base font-bold text-stone-900">{f.title}</h3>
-                  <p className="mt-1.5 text-sm text-stone-600">{f.description}</p>
-                </div>
+                </ScrollReveal>
               ))}
             </div>
 
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+            <ScrollReveal delay={200} className="mt-8 flex flex-wrap items-center justify-center gap-2">
               <span className="text-sm font-medium text-stone-500">...og meget mere:</span>
               {moreFeatures.map((f) => (
                 <span key={f} className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600">
                   {f}
                 </span>
               ))}
-            </div>
+            </ScrollReveal>
           </div>
         </section>
 
         {/* Closing CTA */}
         <section className="border-t border-stone-200 bg-gradient-to-br from-rose-50 via-stone-50 to-amber-50">
-          <div className="mx-auto max-w-2xl px-6 py-20 text-center">
+          <ScrollReveal className="mx-auto max-w-2xl px-6 py-20 text-center">
             <h2 className="font-display text-3xl font-semibold text-stone-900">Klar til at prøve LifeSort?</h2>
             <p className="mt-2 text-sm text-stone-600">Vær blandt de første til at få adgang, når vi lancerer.</p>
             <WaitlistCta />
-          </div>
+          </ScrollReveal>
         </section>
 
         {/* FAQ / support teaser */}
-        <section className="mx-auto max-w-5xl px-6 py-16 text-center">
+        <ScrollReveal className="mx-auto max-w-5xl px-6 py-16 text-center">
           <h2 className="text-2xl font-bold text-stone-900">Har du spørgsmål?</h2>
           <p className="mt-2 text-sm text-stone-600">Tjek vores ofte stillede spørgsmål, eller skriv til os direkte.</p>
           <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -102,7 +108,7 @@ export default function Home() {
               Kontakt support
             </Link>
           </div>
-        </section>
+        </ScrollReveal>
       </main>
       <PublicFooter />
     </>
