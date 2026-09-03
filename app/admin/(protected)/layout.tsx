@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Tag, BookOpen, Percent, Inbox, Users, Milestone } from 'lucide-react';
+import { LayoutDashboard, Tag, BookOpen, Percent, Inbox, Users, Milestone, Activity, ShieldCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import SignOutButton from './sign-out-button';
+import { AdminUserProvider } from '@/components/admin-user-context';
 
 export const metadata = {
   title: 'Admin',
@@ -51,6 +52,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             Projekt
           </p>
           <NavLink href="/admin/timeline" icon={<Milestone size={17} />} label="Tidslinje" />
+          <NavLink href="/admin/activity" icon={<Activity size={17} />} label="Aktivitet" />
+          <NavLink href="/admin/admins" icon={<ShieldCheck size={17} />} label="Admins" />
 
           <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
             Mad
@@ -83,7 +86,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </aside>
 
       <main className="flex-1 overflow-y-auto p-8">
-        <div className="mx-auto max-w-5xl">{children}</div>
+        <div className="mx-auto max-w-5xl">
+          <AdminUserProvider user={{ id: user.id, name: adminRow.full_name }}>
+            {children}
+          </AdminUserProvider>
+        </div>
       </main>
     </div>
   );

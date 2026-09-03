@@ -3,6 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Percent, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useToast } from '@/components/toast-provider';
+import { useConfirm } from '@/components/confirm-dialog';
+import { logActivity } from '@/lib/activity-log';
+import { useAdminUser } from '@/components/admin-user-context';
 
 type OfferRow = {
   id: string;
@@ -33,6 +37,9 @@ function getStatus(offer: OfferRow): 'active' | 'upcoming' | 'expired' {
 
 export default function OffersOverviewPage() {
   const supabase = createClient();
+  const { showToast } = useToast();
+  const confirm = useConfirm();
+  const adminUser = useAdminUser();
 
   const [rows, setRows] = useState<OfferRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -75,17 +82,29 @@ export default function OffersOverviewPage() {
       }
       setRows(filtered);
       setTotalCount(count ?? 0);
+    } else {
+      showToast('Kunne ikke hente tilbud.', 'error');
     }
     setIsLoading(false);
-  }, [supabase, search, storeFilter, statusFilter, page]);
+  }, [supabase, search, storeFilter, statusFilter, page, showToast]);
 
   useEffect(() => { fetchStores(); }, [fetchStores]);
   useEffect(() => { fetchRows(); }, [fetchRows]);
   useEffect(() => { setPage(0); }, [search, storeFilter, statusFilter]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Fjern dette tilbud?')) return;
-    await supabase.from('global_offers').delete().eq('id', id);
+  const handleDelete = async (row: OfferRow) => {
+    const ok = await confirm({ title: 'Fjern dette tilbud?', message: 'Dette kan ikke fortrydes.' });
+    if (!ok) return;
+    const { error } = await supabase.from('global_offers').delete().eq('id', row.id);
+    if (error) { showToast('Kunne ikke fjerne tilbuddet.', 'error'); return; }
+    showToast('Tilbud fjernet.');
+    if (row.standard_price) {
+      logActivity(supabase, {
+        actorId: adminUser.id, actorName: adminUser.name,
+        action: 'deleted', entityType: 'offer',
+        entityLabel: `${row.standard_price.product_name} (${row.standard_price.store})`,
+      });
+    }
     fetchRows();
   };
 
@@ -169,7 +188,7 @@ export default function OffersOverviewPage() {
                     <td className="px-5 py-3.5 text-xs text-stone-500">{row.valid_from} → {row.valid_to}</td>
                     <td className="px-5 py-3.5">{statusBadge(status)}</td>
                     <td className="px-5 py-3.5 text-right">
-                      <button onClick={() => handleDelete(row.id)} title="Slet" className="rounded-lg p-1.5 text-red-500 transition hover:bg-red-50">
+                      <button onClick={() => handleDelete(row)} title="Slet" className="rounded-lg p-1.5 text-red-500 transition hover:bg-red-50">
                         <Trash2 size={15} />
                       </button>
                     </td>

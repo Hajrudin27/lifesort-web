@@ -8,6 +8,8 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { useConfirm } from '@/components/confirm-dialog';
+import { logActivity } from '@/lib/activity-log';
+import { useAdminUser } from '@/components/admin-user-context';
 
 type Owner = 'hajrudin' | 'walid' | 'begge';
 type Status = 'upcoming' | 'in_progress' | 'done';
@@ -65,6 +67,7 @@ export default function TimelinePage() {
   const supabase = createClient();
   const { showToast } = useToast();
   const confirm = useConfirm();
+  const adminUser = useAdminUser();
 
   const [rows, setRows] = useState<TimelineRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -172,6 +175,11 @@ export default function TimelinePage() {
     setIsSaving(false);
     if (error) { showToast('Kunne ikke gemme posten.', 'error'); return; }
     showToast(editingId ? 'Post opdateret.' : 'Post oprettet.');
+    logActivity(supabase, {
+      actorId: adminUser.id, actorName: adminUser.name,
+      action: editingId ? 'updated' : 'created', entityType: 'timeline_event',
+      entityLabel: formTitle.trim(),
+    });
     closeForm();
     fetchRows();
   };
@@ -182,6 +190,11 @@ export default function TimelinePage() {
     const { error } = await supabase.from('timeline_events').delete().eq('id', row.id);
     if (error) { showToast('Kunne ikke slette posten.', 'error'); return; }
     showToast('Post slettet.');
+    logActivity(supabase, {
+      actorId: adminUser.id, actorName: adminUser.name,
+      action: 'deleted', entityType: 'timeline_event',
+      entityLabel: row.title,
+    });
     setDetailRow(null);
     fetchRows();
   };

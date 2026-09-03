@@ -5,6 +5,8 @@ import Papa from 'papaparse';
 import { Upload, X, FileText, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
+import { logActivity } from '@/lib/activity-log';
+import { useAdminUser } from '@/components/admin-user-context';
 
 type ParsedRow = {
   product_name: string;
@@ -20,6 +22,7 @@ type RowIssue = {
 export function PriceCsvImport({ onImported }: { onImported: () => void }) {
   const supabase = createClient();
   const { showToast } = useToast();
+  const adminUser = useAdminUser();
 
   const [isOpen, setIsOpen] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -83,6 +86,11 @@ export function PriceCsvImport({ onImported }: { onImported: () => void }) {
       return;
     }
     showToast(`${validRows.length} priser importeret.`);
+    logActivity(supabase, {
+      actorId: adminUser.id, actorName: adminUser.name,
+      action: 'created', entityType: 'price',
+      entityLabel: `${validRows.length} priser (CSV-import)`,
+    });
     closeModal();
     onImported();
   };

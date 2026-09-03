@@ -1,8 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { BookOpen, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, X, Clock } from 'lucide-react';
+import { BookOpen, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, X, Clock, ImagePlus, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useToast } from '@/components/toast-provider';
+import { useConfirm } from '@/components/confirm-dialog';
+import { logActivity } from '@/lib/activity-log';
+import { useAdminUser } from '@/components/admin-user-context';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner';
 type Ingredient = { name: string; amount: string };
@@ -19,6 +23,7 @@ type RecipeRow = {
   carbs: number | null;
   fat: number | null;
   tags: string[];
+  image_url: string | null;
 };
 
 const PAGE_SIZE = 20;
@@ -36,6 +41,9 @@ function emptyIngredient(): Ingredient {
 
 export default function RecipesPage() {
   const supabase = createClient();
+  const { showToast } = useToast();
+  const confirm = useConfirm();
+  const adminUser = useAdminUser();
 
   const [rows, setRows] = useState<RecipeRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -57,6 +65,8 @@ export default function RecipesPage() {
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
   const [tagsInput, setTagsInput] = useState('');
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const fetchRows = useCallback(async () => {
@@ -73,9 +83,11 @@ export default function RecipesPage() {
     if (!error) {
       setRows((data as unknown as RecipeRow[]) ?? []);
       setTotalCount(count ?? 0);
+    } else {
+      showToast('Kunne ikke hente opskrifter.', 'error');
     }
     setIsLoading(false);
-  }, [supabase, search, mealFilter, page]);
+  }, [supabase, search, mealFilter, page, showToast]);
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
   useEffect(() => { setPage(0); }, [search, mealFilter]);
@@ -83,7 +95,8 @@ export default function RecipesPage() {
   const resetForm = () => {
     setEditingId(null); setName(''); setMealType('dinner');
     setIngredients([emptyIngredient()]); setMinutes(''); setInstructions('');
-    setCalories(''); setProtein(''); setCarbs(''); setFat(''); setTagsInput(''); setShowForm(false);
+    setCalories(''); setProtein(''); setCarbs(''); setFat(''); setTagsInput('');
+    setImageUrl(null); setShowForm(false);
   };
 
   const startEdit = (row: RecipeRow) => {
@@ -98,6 +111,7 @@ export default function RecipesPage() {
     setCarbs(row.carbs?.toString() ?? '');
     setFat(row.fat?.toString() ?? '');
     setTagsInput(row.tags.join(', '));
+    setImageUrl(row.image_url);
     setShowForm(true);
   };
 
@@ -109,12 +123,30 @@ export default function RecipesPage() {
   const addIngredientRow = () => setIngredients((prev) => [...prev, emptyIngredient()]);
   const removeIngredientRow = (index: number) => setIngredients((prev) => prev.filter((_, i) => i !== index));
 
+  const handleImageSelect = async (file: File) => {
+    setIsUploadingImage(true);
+    const ext = file.name.split('.').pop() ?? 'jpg';
+    const path = `${crypto.randomUUID()}.${ext}`;
+
+    const { error } = await supabase.storage.from('recipe-images').upload(path, file);
+    if (error) {
+      showToast('Kunne ikke uploade billedet.', 'error');
+      setIsUploadingImage(false);
+      return;
+    }
+
+    const { data } = supabase.storage.from('recipe-images').getPublicUrl(path);
+    setImageUrl(data.publicUrl);
+    setIsUploadingImage(false);
+  };
+
   const validIngredients = ingredients.filter((i) => i.name.trim().length > 0);
   const canSave = name.trim().length > 0 && validIngredients.length > 0;
 
   const handleSave = async () => {
     if (!canSave) return;
     setIsSaving(true);
+    const wasEditing = !!editingId;
     const payload = {
       name: name.trim(), meal_type: mealType,
       ingredients: validIngredients.map((i) => ({ name: i.name.trim(), amount: i.amount.trim() })),
@@ -125,16 +157,37 @@ export default function RecipesPage() {
       carbs: carbs.trim() ? parseFloat(carbs) : null,
       fat: fat.trim() ? parseFloat(fat) : null,
       tags: tagsInput.trim() ? tagsInput.split(',').map((t) => t.trim()).filter(Boolean) : [],
+      image_url: imageUrl,
       updated_at: new Date().toISOString(),
     };
-    if (editingId) await supabase.from('global_recipes').update(payload).eq('id', editingId);
-    else await supabase.from('global_recipes').insert(payload);
-    setIsSaving(false); resetForm(); fetchRows();
+
+    const { error } = editingId
+      ? await supabase.from('global_recipes').update(payload).eq('id', editingId)
+      : await supabase.from('global_recipes').insert(payload);
+
+    setIsSaving(false);
+    if (error) { showToast('Kunne ikke gemme opskriften.', 'error'); return; }
+    showToast(wasEditing ? 'Opskrift opdateret.' : 'Opskrift oprettet.');
+    logActivity(supabase, {
+      actorId: adminUser.id, actorName: adminUser.name,
+      action: wasEditing ? 'updated' : 'created', entityType: 'recipe',
+      entityLabel: name.trim(),
+    });
+    resetForm();
+    fetchRows();
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Slet denne opskrift?')) return;
-    await supabase.from('global_recipes').delete().eq('id', id);
+  const handleDelete = async (row: RecipeRow) => {
+    const ok = await confirm({ title: 'Slet opskrift?', message: `"${row.name}" slettes permanent. Dette kan ikke fortrydes.` });
+    if (!ok) return;
+    const { error } = await supabase.from('global_recipes').delete().eq('id', row.id);
+    if (error) { showToast('Kunne ikke slette opskriften.', 'error'); return; }
+    showToast('Opskrift slettet.');
+    logActivity(supabase, {
+      actorId: adminUser.id, actorName: adminUser.name,
+      action: 'deleted', entityType: 'recipe',
+      entityLabel: row.name,
+    });
     fetchRows();
   };
 
@@ -163,6 +216,39 @@ export default function RecipesPage() {
       {showForm && (
         <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm shadow-stone-900/5">
           <h2 className="font-bold text-stone-900">{editingId ? 'Redigér opskrift' : 'Ny opskrift'}</h2>
+
+          <div className="mt-4">
+            <label className="text-xs font-semibold text-stone-500">Billede</label>
+            <div className="mt-1 flex items-center gap-3">
+              {imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imageUrl} alt="" className="h-20 w-20 rounded-xl object-cover" />
+              ) : (
+                <div className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-stone-200 text-stone-300">
+                  <ImagePlus size={22} />
+                </div>
+              )}
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-50">
+                {isUploadingImage ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
+                {isUploadingImage ? 'Uploader...' : imageUrl ? 'Skift billede' : 'Upload billede'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={isUploadingImage}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImageSelect(file);
+                  }}
+                />
+              </label>
+              {imageUrl && (
+                <button type="button" onClick={() => setImageUrl(null)} className="text-xs font-medium text-stone-400 hover:text-red-500">
+                  Fjern
+                </button>
+              )}
+            </div>
+          </div>
 
           <div className="mt-4 grid grid-cols-2 gap-4">
             <div>
@@ -273,7 +359,7 @@ export default function RecipesPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-stone-100 bg-stone-50/50 text-left text-xs font-semibold text-stone-500">
               <tr>
-                <th className="px-5 py-3">Navn</th>
+                <th className="px-5 py-3">Opskrift</th>
                 <th className="px-5 py-3">Måltid</th>
                 <th className="px-5 py-3">Ingredienser</th>
                 <th className="px-5 py-3">Tid</th>
@@ -288,7 +374,19 @@ export default function RecipesPage() {
               ) : (
                 rows.map((row) => (
                   <tr key={row.id} className="transition hover:bg-stone-50/50">
-                    <td className="px-5 py-3.5 font-medium text-stone-900">{row.name}</td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        {row.image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={row.image_url} alt="" className="h-9 w-9 rounded-lg object-cover" />
+                        ) : (
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-stone-100 text-stone-300">
+                            <ImagePlus size={14} />
+                          </div>
+                        )}
+                        <span className="font-medium text-stone-900">{row.name}</span>
+                      </div>
+                    </td>
                     <td className="px-5 py-3.5">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${MEAL_COLORS[row.meal_type]}`}>
                         {MEAL_LABELS[row.meal_type]}
@@ -305,7 +403,7 @@ export default function RecipesPage() {
                         <button onClick={() => startEdit(row)} title="Redigér" className="rounded-lg p-1.5 text-stone-500 transition hover:bg-stone-100">
                           <Pencil size={15} />
                         </button>
-                        <button onClick={() => handleDelete(row.id)} title="Slet" className="rounded-lg p-1.5 text-red-500 transition hover:bg-red-50">
+                        <button onClick={() => handleDelete(row)} title="Slet" className="rounded-lg p-1.5 text-red-500 transition hover:bg-red-50">
                           <Trash2 size={15} />
                         </button>
                       </div>

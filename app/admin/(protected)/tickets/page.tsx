@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { Inbox, Search, Mail, Clock, Archive, Send, RotateCw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
+import { logActivity } from '@/lib/activity-log';
+import { useAdminUser } from '@/components/admin-user-context';
 
 type TicketStatus = 'open' | 'answered' | 'closed';
 
@@ -40,6 +42,7 @@ function formatDate(iso: string) {
 export default function TicketsPage() {
   const supabase = createClient();
   const { showToast } = useToast();
+  const adminUser = useAdminUser();
 
   const [rows, setRows] = useState<TicketRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -100,6 +103,12 @@ export default function TicketsPage() {
     setIsSaving(false);
     if (error) { showToast('Kunne ikke gemme svaret.', 'error'); return; }
 
+    logActivity(supabase, {
+      actorId: adminUser.id, actorName: adminUser.name,
+      action: 'replied', entityType: 'ticket',
+      entityLabel: activeTicket.subject,
+    });
+
     // Email sending is best-effort: the reply is already saved either way.
     try {
       const res = await fetch('/api/send-ticket-reply', {
@@ -145,6 +154,11 @@ export default function TicketsPage() {
     setIsSaving(false);
     if (error) { showToast('Kunne ikke opdatere status.', 'error'); return; }
     showToast(status === 'closed' ? 'Sag lukket.' : 'Sag genåbnet.');
+    logActivity(supabase, {
+      actorId: adminUser.id, actorName: adminUser.name,
+      action: 'updated', entityType: 'ticket',
+      entityLabel: `${activeTicket.subject} (${status === 'closed' ? 'lukket' : 'genåbnet'})`,
+    });
     closeModal();
     fetchRows();
   };

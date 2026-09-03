@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { useConfirm } from '@/components/confirm-dialog';
 import { PriceCsvImport } from '@/components/price-csv-import';
+import { logActivity } from '@/lib/activity-log';
+import { useAdminUser } from '@/components/admin-user-context';
 
 type PriceRow = {
   id: string;
@@ -34,6 +36,7 @@ export default function StandardPricesPage() {
   const supabase = createClient();
   const { showToast } = useToast();
   const confirm = useConfirm();
+  const adminUser = useAdminUser();
 
   const [rows, setRows] = useState<PriceRow[]>([]);
   const [offersByPriceId, setOffersByPriceId] = useState<Record<string, ActiveOffer>>({});
@@ -146,15 +149,28 @@ export default function StandardPricesPage() {
       if (error) { showToast('Kunne ikke oprette prisen.', 'error'); return; }
     }
     showToast(wasEditing ? 'Pris opdateret.' : 'Pris tilføjet.');
+    logActivity(supabase, {
+      actorId: adminUser.id, actorName: adminUser.name,
+      action: wasEditing ? 'updated' : 'created', entityType: 'price',
+      entityLabel: `${newProduct.trim()} (${resolvedStore})`,
+    });
     resetForm(); fetchStores(); fetchRows();
   };
 
   const handleDelete = async (id: string) => {
     const ok = await confirm({ title: 'Slet pris?', message: 'Evt. tilknyttede tilbud slettes også. Dette kan ikke fortrydes.' });
     if (!ok) return;
+    const row = rows.find((r) => r.id === id);
     const { error } = await supabase.from('global_standard_prices').delete().eq('id', id);
     if (error) { showToast('Kunne ikke slette prisen.', 'error'); return; }
     showToast('Pris slettet.');
+    if (row) {
+      logActivity(supabase, {
+        actorId: adminUser.id, actorName: adminUser.name,
+        action: 'deleted', entityType: 'price',
+        entityLabel: `${row.product_name} (${row.store})`,
+      });
+    }
     fetchRows();
   };
 
@@ -189,6 +205,11 @@ export default function StandardPricesPage() {
     setIsSavingOffer(false);
     if (error) { showToast('Kunne ikke gemme tilbuddet.', 'error'); return; }
     showToast('Tilbud gemt.');
+    logActivity(supabase, {
+      actorId: adminUser.id, actorName: adminUser.name,
+      action: existing ? 'updated' : 'created', entityType: 'offer',
+      entityLabel: `${offerModalRow.product_name} (${offerModalRow.store})`,
+    });
     closeOfferModal(); fetchRows();
   };
 
@@ -201,6 +222,11 @@ export default function StandardPricesPage() {
     const { error } = await supabase.from('global_offers').delete().eq('id', existing.id);
     if (error) { showToast('Kunne ikke fjerne tilbuddet.', 'error'); return; }
     showToast('Tilbud fjernet.');
+    logActivity(supabase, {
+      actorId: adminUser.id, actorName: adminUser.name,
+      action: 'deleted', entityType: 'offer',
+      entityLabel: `${offerModalRow.product_name} (${offerModalRow.store})`,
+    });
     closeOfferModal(); fetchRows();
   };
 
