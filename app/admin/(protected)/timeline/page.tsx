@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
-import { useConfirm } from '@/components/confirm-dialog';
 import { logActivity } from '@/lib/activity-log';
 import { useAdminUser } from '@/components/admin-user-context';
 
@@ -65,8 +64,7 @@ type ListItem = { kind: 'event'; row: TimelineRow } | { kind: 'today' };
 
 export default function TimelinePage() {
   const supabase = createClient();
-  const { showToast } = useToast();
-  const confirm = useConfirm();
+  const { showToast, showUndoToast } = useToast();
   const adminUser = useAdminUser();
 
   const [rows, setRows] = useState<TimelineRow[]>([]);
@@ -168,35 +166,46 @@ export default function TimelinePage() {
       owner: formOwner,
     };
 
-    const { error } = editingId
-      ? await supabase.from('timeline_events').update(payload).eq('id', editingId)
-      : await supabase.from('timeline_events').insert(payload);
+    if (editingId) {
+      // Optimistisk: opdater posten på tidslinjen med det samme.
+      const idToUpdate = editingId;
+      setRows((prev) => prev.map((r) => (r.id === idToUpdate ? { ...r, ...payload } : r)));
+      closeForm();
+      const { error } = await supabase.from('timeline_events').update(payload).eq('id', idToUpdate);
+      setIsSaving(false);
+      if (error) { showToast('Kunne ikke gemme posten.', 'error'); fetchRows(); return; }
+    } else {
+      const { error } = await supabase.from('timeline_events').insert(payload);
+      setIsSaving(false);
+      if (error) { showToast('Kunne ikke gemme posten.', 'error'); return; }
+      closeForm();
+      fetchRows();
+    }
 
-    setIsSaving(false);
-    if (error) { showToast('Kunne ikke gemme posten.', 'error'); return; }
     showToast(editingId ? 'Post opdateret.' : 'Post oprettet.');
     logActivity(supabase, {
       actorId: adminUser.id, actorName: adminUser.name,
       action: editingId ? 'updated' : 'created', entityType: 'timeline_event',
       entityLabel: formTitle.trim(),
     });
-    closeForm();
-    fetchRows();
   };
 
-  const handleDelete = async (row: TimelineRow) => {
-    const ok = await confirm({ title: 'Slet post?', message: `"${row.title}" fjernes fra tidslinjen. Dette kan ikke fortrydes.` });
-    if (!ok) return;
-    const { error } = await supabase.from('timeline_events').delete().eq('id', row.id);
-    if (error) { showToast('Kunne ikke slette posten.', 'error'); return; }
-    showToast('Post slettet.');
-    logActivity(supabase, {
-      actorId: adminUser.id, actorName: adminUser.name,
-      action: 'deleted', entityType: 'timeline_event',
-      entityLabel: row.title,
-    });
+  const handleDelete = (row: TimelineRow) => {
+    setRows((prev) => prev.filter((r) => r.id !== row.id));
     setDetailRow(null);
-    fetchRows();
+    showUndoToast(
+      `"${row.title}" fjernet fra tidslinjen.`,
+      async () => {
+        const { error } = await supabase.from('timeline_events').delete().eq('id', row.id);
+        if (error) { showToast('Kunne ikke slette posten.', 'error'); fetchRows(); return; }
+        logActivity(supabase, {
+          actorId: adminUser.id, actorName: adminUser.name,
+          action: 'deleted', entityType: 'timeline_event',
+          entityLabel: row.title,
+        });
+      },
+      () => setRows((prev) => [...prev, row])
+    );
   };
 
   return (

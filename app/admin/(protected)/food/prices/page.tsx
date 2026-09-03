@@ -9,6 +9,7 @@ import { PriceCsvImport } from '@/components/price-csv-import';
 import { logActivity } from '@/lib/activity-log';
 import { useAdminUser } from '@/components/admin-user-context';
 import { SkeletonRows } from '@/components/skeleton-rows';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 type PriceRow = {
   id: string;
@@ -35,7 +36,7 @@ function todayStr() {
 
 export default function StandardPricesPage() {
   const supabase = createClient();
-  const { showToast } = useToast();
+  const { showToast, showUndoToast } = useToast();
   const confirm = useConfirm();
   const adminUser = useAdminUser();
 
@@ -44,6 +45,7 @@ export default function StandardPricesPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [storeFilter, setStoreFilter] = useState<string>('all');
   const [stores, setStores] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,7 +75,7 @@ export default function StandardPricesPage() {
       .select('*', { count: 'exact' })
       .order('product_name');
 
-    if (search.trim()) query = query.ilike('product_name', `%${search.trim()}%`);
+    if (debouncedSearch.trim()) query = query.ilike('product_name', `%${debouncedSearch.trim()}%`);
     if (storeFilter !== 'all') query = query.eq('store', storeFilter);
 
     const from = page * PAGE_SIZE;
@@ -107,11 +109,11 @@ export default function StandardPricesPage() {
       showToast('Kunne ikke hente priser.', 'error');
     }
     setIsLoading(false);
-  }, [supabase, search, storeFilter, page, showToast]);
+  }, [supabase, debouncedSearch, storeFilter, page, showToast]);
 
   useEffect(() => { fetchStores(); }, [fetchStores]);
   useEffect(() => { fetchRows(); }, [fetchRows]);
-  useEffect(() => { setPage(0); }, [search, storeFilter]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, storeFilter]);
 
   const resetForm = () => {
     setNewProduct(''); setNewStore(''); setIsAddingNewStore(false);
@@ -138,41 +140,58 @@ export default function StandardPricesPage() {
   const handleSave = async () => {
     if (!canSave) return;
     const wasEditing = !!editingId;
+    const productName = newProduct.trim();
+    const priceValue = parseFloat(newPrice);
+
     if (editingId) {
+      // Optimistisk: opdater listen med det samme, rul tilbage hvis Supabase fejler.
+      const previous = rows.find((r) => r.id === editingId);
+      setRows((prev) => prev.map((r) => (r.id === editingId ? { ...r, product_name: productName, store: resolvedStore, price: priceValue } : r)));
+      resetForm();
+
       const { error } = await supabase.from('global_standard_prices').update({
-        product_name: newProduct.trim(), store: resolvedStore, price: parseFloat(newPrice), updated_at: new Date().toISOString(),
+        product_name: productName, store: resolvedStore, price: priceValue, updated_at: new Date().toISOString(),
       }).eq('id', editingId);
-      if (error) { showToast('Kunne ikke gemme ændringen.', 'error'); return; }
+
+      if (error) {
+        if (previous) setRows((prev) => prev.map((r) => (r.id === editingId ? previous : r)));
+        showToast('Kunne ikke gemme ændringen.', 'error');
+        return;
+      }
     } else {
       const { error } = await supabase.from('global_standard_prices').insert({
-        product_name: newProduct.trim(), store: resolvedStore, price: parseFloat(newPrice),
+        product_name: productName, store: resolvedStore, price: priceValue,
       });
       if (error) { showToast('Kunne ikke oprette prisen.', 'error'); return; }
+      resetForm();
+      fetchRows();
     }
+
     showToast(wasEditing ? 'Pris opdateret.' : 'Pris tilføjet.');
     logActivity(supabase, {
       actorId: adminUser.id, actorName: adminUser.name,
       action: wasEditing ? 'updated' : 'created', entityType: 'price',
-      entityLabel: `${newProduct.trim()} (${resolvedStore})`,
+      entityLabel: `${productName} (${resolvedStore})`,
     });
-    resetForm(); fetchStores(); fetchRows();
+    fetchStores();
   };
 
-  const handleDelete = async (id: string) => {
-    const ok = await confirm({ title: 'Slet pris?', message: 'Evt. tilknyttede tilbud slettes også. Dette kan ikke fortrydes.' });
-    if (!ok) return;
-    const row = rows.find((r) => r.id === id);
-    const { error } = await supabase.from('global_standard_prices').delete().eq('id', id);
-    if (error) { showToast('Kunne ikke slette prisen.', 'error'); return; }
-    showToast('Pris slettet.');
-    if (row) {
-      logActivity(supabase, {
-        actorId: adminUser.id, actorName: adminUser.name,
-        action: 'deleted', entityType: 'price',
-        entityLabel: `${row.product_name} (${row.store})`,
-      });
-    }
-    fetchRows();
+  const handleDelete = (row: PriceRow) => {
+    // Fjern med det samme og tilbyd fortryd — sletningen sker først for alvor, når vinduet udløber.
+    setRows((prev) => prev.filter((r) => r.id !== row.id));
+    showUndoToast(
+      `"${row.product_name}" slettet.`,
+      async () => {
+        const { error } = await supabase.from('global_standard_prices').delete().eq('id', row.id);
+        if (error) { showToast('Kunne ikke slette prisen.', 'error'); fetchRows(); return; }
+        logActivity(supabase, {
+          actorId: adminUser.id, actorName: adminUser.name,
+          action: 'deleted', entityType: 'price',
+          entityLabel: `${row.product_name} (${row.store})`,
+        });
+      },
+      () => setRows((prev) => [...prev, row].sort((a, b) => a.product_name.localeCompare(b.product_name)))
+    );
   };
 
   const openOfferModal = (row: PriceRow) => {
@@ -362,7 +381,7 @@ export default function StandardPricesPage() {
                           className="rounded-lg p-1.5 text-stone-500 transition hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800">
                           <Pencil size={15} />
                         </button>
-                        <button onClick={() => handleDelete(row.id)} title="Slet"
+                        <button onClick={() => handleDelete(row)} title="Slet"
                           className="rounded-lg p-1.5 text-red-500 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10">
                           <Trash2 size={15} />
                         </button>

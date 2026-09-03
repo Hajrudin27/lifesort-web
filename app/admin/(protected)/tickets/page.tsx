@@ -7,6 +7,7 @@ import { useToast } from '@/components/toast-provider';
 import { logActivity } from '@/lib/activity-log';
 import { useAdminUser } from '@/components/admin-user-context';
 import { SkeletonRows } from '@/components/skeleton-rows';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 type TicketStatus = 'open' | 'answered' | 'closed';
 
@@ -49,6 +50,7 @@ export default function TicketsPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [statusFilter, setStatusFilter] = useState<TicketStatus | 'all'>('open');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -63,7 +65,7 @@ export default function TicketsPage() {
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
 
-    if (search.trim()) query = query.or(`name.ilike.%${search.trim()}%,email.ilike.%${search.trim()}%,subject.ilike.%${search.trim()}%`);
+    if (debouncedSearch.trim()) query = query.or(`name.ilike.%${debouncedSearch.trim()}%,email.ilike.%${debouncedSearch.trim()}%,subject.ilike.%${debouncedSearch.trim()}%`);
     if (statusFilter !== 'all') query = query.eq('status', statusFilter);
 
     const from = page * PAGE_SIZE;
@@ -78,10 +80,10 @@ export default function TicketsPage() {
       showToast('Kunne ikke hente supportsager.', 'error');
     }
     setIsLoading(false);
-  }, [supabase, search, statusFilter, page, showToast]);
+  }, [supabase, debouncedSearch, statusFilter, page, showToast]);
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
-  useEffect(() => { setPage(0); }, [search, statusFilter]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, statusFilter]);
 
   const openTicket = (row: TicketRow) => {
     setActiveTicket(row);
@@ -150,18 +152,23 @@ export default function TicketsPage() {
 
   const handleSetStatus = async (status: TicketStatus) => {
     if (!activeTicket) return;
-    setIsSaving(true);
+    const previousStatus = activeTicket.status;
+    // Optimistisk: opdater listen og luk modalen med det samme.
+    setRows((prev) => prev.map((r) => (r.id === activeTicket.id ? { ...r, status } : r)));
+    closeModal();
+
     const { error } = await supabase.from('support_tickets').update({ status }).eq('id', activeTicket.id);
-    setIsSaving(false);
-    if (error) { showToast('Kunne ikke opdatere status.', 'error'); return; }
+    if (error) {
+      setRows((prev) => prev.map((r) => (r.id === activeTicket.id ? { ...r, status: previousStatus } : r)));
+      showToast('Kunne ikke opdatere status.', 'error');
+      return;
+    }
     showToast(status === 'closed' ? 'Sag lukket.' : 'Sag genåbnet.');
     logActivity(supabase, {
       actorId: adminUser.id, actorName: adminUser.name,
       action: 'updated', entityType: 'ticket',
       entityLabel: `${activeTicket.subject} (${status === 'closed' ? 'lukket' : 'genåbnet'})`,
     });
-    closeModal();
-    fetchRows();
   };
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));

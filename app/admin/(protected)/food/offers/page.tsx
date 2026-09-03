@@ -4,10 +4,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { Percent, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
-import { useConfirm } from '@/components/confirm-dialog';
 import { logActivity } from '@/lib/activity-log';
 import { useAdminUser } from '@/components/admin-user-context';
 import { SkeletonRows } from '@/components/skeleton-rows';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 type OfferRow = {
   id: string;
@@ -38,14 +38,14 @@ function getStatus(offer: OfferRow): 'active' | 'upcoming' | 'expired' {
 
 export default function OffersOverviewPage() {
   const supabase = createClient();
-  const { showToast } = useToast();
-  const confirm = useConfirm();
+  const { showToast, showUndoToast } = useToast();
   const adminUser = useAdminUser();
 
   const [rows, setRows] = useState<OfferRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [storeFilter, setStoreFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
   const [stores, setStores] = useState<string[]>([]);
@@ -77,8 +77,8 @@ export default function OffersOverviewPage() {
     if (!error) {
       let filtered = (data as unknown as OfferRow[]) ?? [];
       if (storeFilter !== 'all') filtered = filtered.filter((r) => r.standard_price?.store === storeFilter);
-      if (search.trim()) {
-        const q = search.trim().toLowerCase();
+      if (debouncedSearch.trim()) {
+        const q = debouncedSearch.trim().toLowerCase();
         filtered = filtered.filter((r) => r.standard_price?.product_name.toLowerCase().includes(q));
       }
       setRows(filtered);
@@ -87,26 +87,29 @@ export default function OffersOverviewPage() {
       showToast('Kunne ikke hente tilbud.', 'error');
     }
     setIsLoading(false);
-  }, [supabase, search, storeFilter, statusFilter, page, showToast]);
+  }, [supabase, debouncedSearch, storeFilter, statusFilter, page, showToast]);
 
   useEffect(() => { fetchStores(); }, [fetchStores]);
   useEffect(() => { fetchRows(); }, [fetchRows]);
-  useEffect(() => { setPage(0); }, [search, storeFilter, statusFilter]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, storeFilter, statusFilter]);
 
-  const handleDelete = async (row: OfferRow) => {
-    const ok = await confirm({ title: 'Fjern dette tilbud?', message: 'Dette kan ikke fortrydes.' });
-    if (!ok) return;
-    const { error } = await supabase.from('global_offers').delete().eq('id', row.id);
-    if (error) { showToast('Kunne ikke fjerne tilbuddet.', 'error'); return; }
-    showToast('Tilbud fjernet.');
-    if (row.standard_price) {
-      logActivity(supabase, {
-        actorId: adminUser.id, actorName: adminUser.name,
-        action: 'deleted', entityType: 'offer',
-        entityLabel: `${row.standard_price.product_name} (${row.standard_price.store})`,
-      });
-    }
-    fetchRows();
+  const handleDelete = (row: OfferRow) => {
+    setRows((prev) => prev.filter((r) => r.id !== row.id));
+    showUndoToast(
+      `Tilbud på "${row.standard_price?.product_name ?? 'ukendt'}" fjernet.`,
+      async () => {
+        const { error } = await supabase.from('global_offers').delete().eq('id', row.id);
+        if (error) { showToast('Kunne ikke fjerne tilbuddet.', 'error'); fetchRows(); return; }
+        if (row.standard_price) {
+          logActivity(supabase, {
+            actorId: adminUser.id, actorName: adminUser.name,
+            action: 'deleted', entityType: 'offer',
+            entityLabel: `${row.standard_price.product_name} (${row.standard_price.store})`,
+          });
+        }
+      },
+      () => setRows((prev) => [row, ...prev])
+    );
   };
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));

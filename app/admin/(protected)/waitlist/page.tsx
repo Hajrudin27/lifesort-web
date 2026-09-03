@@ -5,6 +5,7 @@ import { Users, Search, Apple, Smartphone, Download } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { SkeletonRows } from '@/components/skeleton-rows';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 type Platform = 'ios' | 'android';
 
@@ -29,6 +30,7 @@ export default function WaitlistPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [platformFilter, setPlatformFilter] = useState<Platform | 'all'>('all');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -39,7 +41,7 @@ export default function WaitlistPage() {
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
 
-    if (search.trim()) query = query.ilike('email', `%${search.trim()}%`);
+    if (debouncedSearch.trim()) query = query.ilike('email', `%${debouncedSearch.trim()}%`);
     if (platformFilter !== 'all') query = query.eq('platform', platformFilter);
 
     const from = page * PAGE_SIZE;
@@ -54,10 +56,10 @@ export default function WaitlistPage() {
       showToast('Kunne ikke hente ventelisten.', 'error');
     }
     setIsLoading(false);
-  }, [supabase, search, platformFilter, page, showToast]);
+  }, [supabase, debouncedSearch, platformFilter, page, showToast]);
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
-  useEffect(() => { setPage(0); }, [search, platformFilter]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, platformFilter]);
 
   const [isExporting, setIsExporting] = useState(false);
 

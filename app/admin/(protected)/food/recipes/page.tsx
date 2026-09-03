@@ -4,10 +4,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { BookOpen, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, X, Clock, ImagePlus, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
-import { useConfirm } from '@/components/confirm-dialog';
 import { logActivity } from '@/lib/activity-log';
 import { useAdminUser } from '@/components/admin-user-context';
 import { SkeletonRows } from '@/components/skeleton-rows';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { compressImage } from '@/lib/imageCompression';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner';
 type Ingredient = { name: string; amount: string };
@@ -42,14 +43,14 @@ function emptyIngredient(): Ingredient {
 
 export default function RecipesPage() {
   const supabase = createClient();
-  const { showToast } = useToast();
-  const confirm = useConfirm();
+  const { showToast, showUndoToast } = useToast();
   const adminUser = useAdminUser();
 
   const [rows, setRows] = useState<RecipeRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [mealFilter, setMealFilter] = useState<MealType | 'all'>('all');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -73,7 +74,7 @@ export default function RecipesPage() {
   const fetchRows = useCallback(async () => {
     setIsLoading(true);
     let query = supabase.from('global_recipes').select('*', { count: 'exact' }).order('name');
-    if (search.trim()) query = query.ilike('name', `%${search.trim()}%`);
+    if (debouncedSearch.trim()) query = query.ilike('name', `%${debouncedSearch.trim()}%`);
     if (mealFilter !== 'all') query = query.eq('meal_type', mealFilter);
 
     const from = page * PAGE_SIZE;
@@ -88,10 +89,10 @@ export default function RecipesPage() {
       showToast('Kunne ikke hente opskrifter.', 'error');
     }
     setIsLoading(false);
-  }, [supabase, search, mealFilter, page, showToast]);
+  }, [supabase, debouncedSearch, mealFilter, page, showToast]);
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
-  useEffect(() => { setPage(0); }, [search, mealFilter]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, mealFilter]);
 
   const resetForm = () => {
     setEditingId(null); setName(''); setMealType('dinner');
@@ -126,10 +127,11 @@ export default function RecipesPage() {
 
   const handleImageSelect = async (file: File) => {
     setIsUploadingImage(true);
-    const ext = file.name.split('.').pop() ?? 'jpg';
+    const compressed = await compressImage(file, { maxDimension: 1600, quality: 0.75 });
+    const ext = compressed.name.split('.').pop() ?? 'jpg';
     const path = `${crypto.randomUUID()}.${ext}`;
 
-    const { error } = await supabase.storage.from('recipe-images').upload(path, file);
+    const { error } = await supabase.storage.from('recipe-images').upload(path, compressed);
     if (error) {
       showToast('Kunne ikke uploade billedet.', 'error');
       setIsUploadingImage(false);
@@ -162,34 +164,44 @@ export default function RecipesPage() {
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = editingId
-      ? await supabase.from('global_recipes').update(payload).eq('id', editingId)
-      : await supabase.from('global_recipes').insert(payload);
+    if (wasEditing) {
+      // Optimistisk: opdater rækken i listen med det samme.
+      setRows((prev) => prev.map((r) => (r.id === editingId ? { ...r, ...payload } : r)));
+      resetForm();
+      const { error } = await supabase.from('global_recipes').update(payload).eq('id', editingId);
+      setIsSaving(false);
+      if (error) { showToast('Kunne ikke gemme opskriften.', 'error'); fetchRows(); return; }
+    } else {
+      const { error } = await supabase.from('global_recipes').insert(payload);
+      setIsSaving(false);
+      if (error) { showToast('Kunne ikke gemme opskriften.', 'error'); return; }
+      resetForm();
+      fetchRows();
+    }
 
-    setIsSaving(false);
-    if (error) { showToast('Kunne ikke gemme opskriften.', 'error'); return; }
     showToast(wasEditing ? 'Opskrift opdateret.' : 'Opskrift oprettet.');
     logActivity(supabase, {
       actorId: adminUser.id, actorName: adminUser.name,
       action: wasEditing ? 'updated' : 'created', entityType: 'recipe',
       entityLabel: name.trim(),
     });
-    resetForm();
-    fetchRows();
   };
 
-  const handleDelete = async (row: RecipeRow) => {
-    const ok = await confirm({ title: 'Slet opskrift?', message: `"${row.name}" slettes permanent. Dette kan ikke fortrydes.` });
-    if (!ok) return;
-    const { error } = await supabase.from('global_recipes').delete().eq('id', row.id);
-    if (error) { showToast('Kunne ikke slette opskriften.', 'error'); return; }
-    showToast('Opskrift slettet.');
-    logActivity(supabase, {
-      actorId: adminUser.id, actorName: adminUser.name,
-      action: 'deleted', entityType: 'recipe',
-      entityLabel: row.name,
-    });
-    fetchRows();
+  const handleDelete = (row: RecipeRow) => {
+    setRows((prev) => prev.filter((r) => r.id !== row.id));
+    showUndoToast(
+      `"${row.name}" slettet.`,
+      async () => {
+        const { error } = await supabase.from('global_recipes').delete().eq('id', row.id);
+        if (error) { showToast('Kunne ikke slette opskriften.', 'error'); fetchRows(); return; }
+        logActivity(supabase, {
+          actorId: adminUser.id, actorName: adminUser.name,
+          action: 'deleted', entityType: 'recipe',
+          entityLabel: row.name,
+        });
+      },
+      () => setRows((prev) => [...prev, row].sort((a, b) => a.name.localeCompare(b.name)))
+    );
   };
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
