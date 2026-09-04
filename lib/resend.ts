@@ -21,8 +21,9 @@ export async function sendEmail({
       body: JSON.stringify({
         // TODO: skift til en afsenderadresse på jeres eget verificerede domæne
         // (fx support@lifesort.app) — onboarding@resend.dev kan kun sende til
-        // den email, jeres Resend-konto selv er oprettet med.
-        from: 'LifeSort Support <onboarding@resend.dev>',
+      // Resend (fx "LifeSort Support <support@lifesort.app>") — indtil da falder den
+      // tilbage til onboarding@resend.dev, som kun kan sende til jeres egen Resend-konto.
+       from: process.env.RESEND_FROM_EMAIL || 'LifeSort Support <onboarding@resend.dev>',
         to,
         subject,
         html,

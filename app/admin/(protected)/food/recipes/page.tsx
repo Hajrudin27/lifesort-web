@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { BookOpen, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, X, Clock, ImagePlus, Loader2 } from 'lucide-react';
+import { BookOpen, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, X, Clock, ImagePlus, Loader2, Square, CheckSquare } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { logActivity } from '@/lib/activity-log';
@@ -47,6 +47,7 @@ export default function RecipesPage() {
   const adminUser = useAdminUser();
 
   const [rows, setRows] = useState<RecipeRow[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
@@ -85,6 +86,7 @@ export default function RecipesPage() {
     if (!error) {
       setRows((data as unknown as RecipeRow[]) ?? []);
       setTotalCount(count ?? 0);
+      setSelectedIds(new Set());
     } else {
       showToast('Kunne ikke hente opskrifter.', 'error');
     }
@@ -201,6 +203,38 @@ export default function RecipesPage() {
         });
       },
       () => setRows((prev) => [...prev, row].sort((a, b) => a.name.localeCompare(b.name)))
+    );
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))));
+  };
+
+  const handleBulkDelete = () => {
+    const toDelete = rows.filter((r) => selectedIds.has(r.id));
+    if (toDelete.length === 0) return;
+    setRows((prev) => prev.filter((r) => !selectedIds.has(r.id)));
+    setSelectedIds(new Set());
+    showUndoToast(
+      `${toDelete.length} ${toDelete.length === 1 ? 'opskrift' : 'opskrifter'} slettet.`,
+      async () => {
+        const { error } = await supabase.from('global_recipes').delete().in('id', toDelete.map((r) => r.id));
+        if (error) { showToast('Kunne ikke slette de valgte opskrifter.', 'error'); fetchRows(); return; }
+        logActivity(supabase, {
+          actorId: adminUser.id, actorName: adminUser.name,
+          action: 'deleted', entityType: 'recipe',
+          entityLabel: `${toDelete.length} opskrifter (bulk)`,
+        });
+      },
+      () => setRows((prev) => [...prev, ...toDelete].sort((a, b) => a.name.localeCompare(b.name)))
     );
   };
 
@@ -368,10 +402,28 @@ export default function RecipesPage() {
       )}
 
       {!showForm && (
-        <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
+        <>
+          {selectedIds.size > 0 && (
+            <div className="mt-4 flex items-center justify-between rounded-xl bg-stone-900 px-4 py-2.5 text-sm text-white dark:bg-stone-800">
+              <span>{selectedIds.size} valgt</span>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setSelectedIds(new Set())} className="text-stone-300 hover:text-white">Ryd valg</button>
+                <button onClick={handleBulkDelete} className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 font-semibold hover:bg-red-700">
+                  <Trash2 size={13} /> Slet valgte
+                </button>
+              </div>
+            </div>
+          )}
+
+      <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
           <table className="w-full text-sm">
             <thead className="border-b border-stone-100 bg-stone-50/50 text-left text-xs font-semibold text-stone-500 dark:border-stone-800 dark:bg-stone-800/50 dark:text-stone-400">
               <tr>
+                <th className="w-10 px-5 py-3">
+                  <button onClick={toggleSelectAll} className="flex text-stone-400 hover:text-stone-600 dark:hover:text-stone-200">
+                    {rows.length > 0 && selectedIds.size === rows.length ? <CheckSquare size={16} /> : <Square size={16} />}
+                  </button>
+                </th>
                 <th className="px-5 py-3">Opskrift</th>
                 <th className="px-5 py-3">Måltid</th>
                 <th className="px-5 py-3">Ingredienser</th>
@@ -381,12 +433,17 @@ export default function RecipesPage() {
             </thead>
             <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
               {isLoading ? (
-                <SkeletonRows columns={5} />
+                <SkeletonRows columns={6} />
               ) : rows.length === 0 ? (
-                <tr><td colSpan={5} className="px-5 py-8 text-center text-stone-400 dark:text-stone-500">Ingen opskrifter fundet.</td></tr>
+                <tr><td colSpan={6} className="px-5 py-8 text-center text-stone-400 dark:text-stone-500">Ingen opskrifter fundet.</td></tr>
               ) : (
                 rows.map((row) => (
                   <tr key={row.id} className="transition hover:bg-stone-50/50 dark:hover:bg-stone-800/50">
+                    <td className="px-5 py-3.5">
+                      <button onClick={() => toggleSelect(row.id)} className="flex text-stone-400 hover:text-stone-600 dark:hover:text-stone-200">
+                        {selectedIds.has(row.id) ? <CheckSquare size={16} className="text-amber-600 dark:text-amber-400" /> : <Square size={16} />}
+                      </button>
+                    </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         {row.image_url ? (
@@ -427,6 +484,7 @@ export default function RecipesPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {!showForm && totalPages > 1 && (

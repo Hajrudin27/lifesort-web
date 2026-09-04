@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Tag, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, Percent } from 'lucide-react';
+import { Tag, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, Percent, Square, CheckSquare } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { useConfirm } from '@/components/confirm-dialog';
@@ -41,6 +41,7 @@ export default function StandardPricesPage() {
   const adminUser = useAdminUser();
 
   const [rows, setRows] = useState<PriceRow[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [offersByPriceId, setOffersByPriceId] = useState<Record<string, ActiveOffer>>({});
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
@@ -64,8 +65,8 @@ export default function StandardPricesPage() {
   const [isSavingOffer, setIsSavingOffer] = useState(false);
 
   const fetchStores = useCallback(async () => {
-    const { data } = await supabase.from('global_standard_prices').select('store').order('store');
-    if (data) setStores(Array.from(new Set(data.map((r) => r.store))));
+    const { data } = await supabase.from('distinct_stores').select('store');
+    if (data) setStores(data.map((r) => r.store));
   }, [supabase]);
 
   const fetchRows = useCallback(async () => {
@@ -86,6 +87,7 @@ export default function StandardPricesPage() {
     if (!error) {
       setRows(data ?? []);
       setTotalCount(count ?? 0);
+      setSelectedIds(new Set());
 
       const ids = (data ?? []).map((r) => r.id);
       if (ids.length > 0) {
@@ -191,6 +193,38 @@ export default function StandardPricesPage() {
         });
       },
       () => setRows((prev) => [...prev, row].sort((a, b) => a.product_name.localeCompare(b.product_name)))
+    );
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))));
+  };
+
+  const handleBulkDelete = () => {
+    const toDelete = rows.filter((r) => selectedIds.has(r.id));
+    if (toDelete.length === 0) return;
+    setRows((prev) => prev.filter((r) => !selectedIds.has(r.id)));
+    setSelectedIds(new Set());
+    showUndoToast(
+      `${toDelete.length} ${toDelete.length === 1 ? 'pris' : 'priser'} slettet.`,
+      async () => {
+        const { error } = await supabase.from('global_standard_prices').delete().in('id', toDelete.map((r) => r.id));
+        if (error) { showToast('Kunne ikke slette de valgte priser.', 'error'); fetchRows(); return; }
+        logActivity(supabase, {
+          actorId: adminUser.id, actorName: adminUser.name,
+          action: 'deleted', entityType: 'price',
+          entityLabel: `${toDelete.length} priser (bulk)`,
+        });
+      },
+      () => setRows((prev) => [...prev, ...toDelete].sort((a, b) => a.product_name.localeCompare(b.product_name)))
     );
   };
 
@@ -327,10 +361,27 @@ export default function StandardPricesPage() {
         </select>
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="mt-4 flex items-center justify-between rounded-xl bg-stone-900 px-4 py-2.5 text-sm text-white dark:bg-stone-800">
+          <span>{selectedIds.size} valgt</span>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSelectedIds(new Set())} className="text-stone-300 hover:text-white">Ryd valg</button>
+            <button onClick={handleBulkDelete} className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 font-semibold hover:bg-red-700">
+              <Trash2 size={13} /> Slet valgte
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
         <table className="w-full text-sm">
           <thead className="border-b border-stone-100 bg-stone-50/50 text-left text-xs font-semibold text-stone-500 dark:border-stone-800 dark:bg-stone-800/50 dark:text-stone-400">
             <tr>
+              <th className="w-10 px-5 py-3">
+                <button onClick={toggleSelectAll} className="flex text-stone-400 hover:text-stone-600 dark:hover:text-stone-200">
+                  {rows.length > 0 && selectedIds.size === rows.length ? <CheckSquare size={16} /> : <Square size={16} />}
+                </button>
+              </th>
               <th className="px-5 py-3">Produkt</th>
               <th className="px-5 py-3">Butik</th>
               <th className="px-5 py-3">Pris</th>
@@ -340,10 +391,10 @@ export default function StandardPricesPage() {
           </thead>
           <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
             {isLoading ? (
-              <SkeletonRows columns={5} />
+              <SkeletonRows columns={6} />
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-5 py-12 text-center">
+                <td colSpan={6} className="px-5 py-12 text-center">
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 dark:bg-stone-800">
                     <Tag className="h-5 w-5 text-stone-400" />
                   </div>
@@ -357,6 +408,11 @@ export default function StandardPricesPage() {
                 const isOfferActive = offer && offer.valid_from <= todayStr() && offer.valid_to >= todayStr();
                 return (
                   <tr key={row.id} className="transition hover:bg-stone-50/50 dark:hover:bg-stone-800/50">
+                    <td className="px-5 py-3.5">
+                      <button onClick={() => toggleSelect(row.id)} className="flex text-stone-400 hover:text-stone-600 dark:hover:text-stone-200">
+                        {selectedIds.has(row.id) ? <CheckSquare size={16} className="text-rose-600 dark:text-rose-400" /> : <Square size={16} />}
+                      </button>
+                    </td>
                     <td className="px-5 py-3.5 font-medium text-stone-900 dark:text-stone-100">{row.product_name}</td>
                     <td className="px-5 py-3.5 text-stone-600 dark:text-stone-400">{row.store}</td>
                     <td className="px-5 py-3.5 text-stone-600 dark:text-stone-400">{row.price.toFixed(2)} kr.</td>

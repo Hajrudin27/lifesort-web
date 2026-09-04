@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { LayoutDashboard, Tag, BookOpen, Percent, Inbox, Users, Milestone, Activity, ShieldCheck, Search } from 'lucide-react';
+import { LayoutDashboard, Tag, BookOpen, Percent, Inbox, Users, Milestone, Activity, ShieldCheck, Search, ChefHat } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import SignOutButton from './sign-out-button';
 import { AdminUserProvider } from '@/components/admin-user-context';
@@ -74,6 +74,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <AdminNavLink href="/admin/food/prices" icon={<Tag size={17} />} label="Standardpriser" />
           <AdminNavLink href="/admin/food/offers" icon={<Percent size={17} />} label="Ugens tilbud" />
           <AdminNavLink href="/admin/food/recipes" icon={<BookOpen size={17} />} label="Opskrifter" />
+          <AdminNavLink href="/admin/food/preview" icon={<ChefHat size={17} />} label="Forhåndsvis madplan" />
 
           <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
             Support

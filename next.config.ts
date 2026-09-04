@@ -6,8 +6,9 @@ const nextConfig: NextConfig = {
 };
 
 export default withSentryConfig(nextConfig, {
-  // TODO: udfyld med jeres org/project-slug fra Sentry (Settings i sentry.io)
-  org: "din-org-slug",
+  // Sæt SENTRY_ORG i miljøvariablerne, når I har oprettet jeres Sentry-projekt
+  // (findes under Settings i sentry.io) — uden den bliver source maps aldrig uploadet.
+  org: process.env.SENTRY_ORG || "din-org-slug",
   project: "lifesort-web",
 
   // Only print logs for uploading source maps in CI
