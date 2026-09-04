@@ -11,7 +11,7 @@ export default function NotFound() {
   return (
     <>
       <PublicHeader />
-      <main className="flex flex-1 items-center justify-center px-6 py-24">
+      <main id="main-content" className="flex flex-1 items-center justify-center px-6 py-24">
         <div className="mx-auto max-w-sm text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-rose-100">
             <Compass className="h-7 w-7 text-rose-600" />

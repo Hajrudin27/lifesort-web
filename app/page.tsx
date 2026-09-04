@@ -15,7 +15,7 @@ export default function Home() {
   return (
     <>
       <PublicHeader />
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         {/* Hero — dark anchor moment */}
         <section className="relative overflow-hidden bg-[#16130F]">
           <div className="pointer-events-none absolute -top-24 right-0 h-[32rem] w-[32rem] rounded-full bg-rose-600/20 blur-[100px] [animation:drift_14s_ease-in-out_infinite]" />
@@ -75,12 +75,19 @@ export default function Home() {
                         Læs mere →
                       </span>
                     </Link>
-                  </ScrollReveal>
+                    </ScrollReveal>
                 );
               })}
             </div>
+
+            <ScrollReveal delay={modules.length * 60} className="mt-8 text-center">
+              <Link href="/appcheck" className="text-sm font-semibold text-rose-600 underline-offset-4 hover:underline">
+                Hvor mange apps bruger du egentlig i dag? →
+              </Link>
+            </ScrollReveal>
           </div>
         </section>
+        
         <FounderStory />
 
         {/* Closing CTA */}

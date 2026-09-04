@@ -31,7 +31,7 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
   return (
     <>
       <PublicHeader />
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         <section className="bg-[#FBF7F1]">
           <div className="mx-auto max-w-2xl px-6 py-16">
             <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 transition hover:text-stone-900">

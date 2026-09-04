@@ -44,7 +44,7 @@ export default function SecurityPage() {
   return (
     <>
       <PublicHeader />
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         <section className="relative overflow-hidden bg-[#16130F]">
           <div className="pointer-events-none absolute -top-20 right-0 h-96 w-96 rounded-full bg-emerald-600/20 blur-[100px] [animation:drift_15s_ease-in-out_infinite]" />
           <div className="pointer-events-none absolute bottom-0 -left-16 h-56 w-56 rounded-full bg-rose-500/10 blur-[90px] [animation:drift_19s_ease-in-out_infinite_reverse]" />

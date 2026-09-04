@@ -9,6 +9,12 @@ export function PublicHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/80 backdrop-blur-sm">
+      
+        <a href="#main-content"
+        className="absolute left-4 top-4 z-50 -translate-y-24 rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white transition focus:translate-y-0"
+      >
+        Spring til indhold
+      </a>
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 to-rose-600">
