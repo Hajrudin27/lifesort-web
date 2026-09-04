@@ -11,5 +11,5 @@ export function SkeletonRows({ columns, rows = 6 }: { columns: number; rows?: nu
           </tr>
         ))}
       </>
-    );
+    );  
   }
