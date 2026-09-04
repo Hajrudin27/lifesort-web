@@ -8,6 +8,7 @@ export function PublicFooter() {
         <div className="mx-auto max-w-5xl px-6 py-8 text-center text-xs text-stone-400">
           <p>© {new Date().getFullYear()} LifeSort. Alle rettigheder forbeholdes.</p>
           <div className="mt-3 flex items-center justify-center gap-4">
+            <Link href="/sikkerhed" className="transition hover:text-stone-500">Sikkerhed &amp; privatliv</Link>
             <Link href="/privacy" className="transition hover:text-stone-500">Privatlivspolitik</Link>
             <Link href="/terms" className="transition hover:text-stone-500">Vilkår</Link>
             <Link href="/admin/login" className="text-stone-300 transition hover:text-stone-500">Admin</Link>
