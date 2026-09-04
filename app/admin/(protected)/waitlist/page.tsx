@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Users, Search, Apple, Smartphone, Download } from 'lucide-react';
+import { Users, Search, Apple, Smartphone, Download, CheckCircle2, Clock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { SkeletonRows } from '@/components/skeleton-rows';
@@ -13,6 +13,7 @@ type WaitlistRow = {
   id: string;
   email: string;
   platform: Platform;
+  confirmed: boolean;
   created_at: string;
 };
 
@@ -32,6 +33,7 @@ export default function WaitlistPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
   const [platformFilter, setPlatformFilter] = useState<Platform | 'all'>('all');
+  const [confirmedFilter, setConfirmedFilter] = useState<'all' | 'confirmed' | 'pending'>('all');
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchRows = useCallback(async () => {
@@ -43,6 +45,7 @@ export default function WaitlistPage() {
 
     if (debouncedSearch.trim()) query = query.ilike('email', `%${debouncedSearch.trim()}%`);
     if (platformFilter !== 'all') query = query.eq('platform', platformFilter);
+    if (confirmedFilter !== 'all') query = query.eq('confirmed', confirmedFilter === 'confirmed');
 
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
@@ -56,10 +59,10 @@ export default function WaitlistPage() {
       showToast('Kunne ikke hente ventelisten.', 'error');
     }
     setIsLoading(false);
-  }, [supabase, debouncedSearch, platformFilter, page, showToast]);
+  }, [supabase, debouncedSearch, platformFilter, confirmedFilter, page, showToast]);
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
-  useEffect(() => { setPage(0); }, [debouncedSearch, platformFilter]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, platformFilter, confirmedFilter]);
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -67,11 +70,12 @@ export default function WaitlistPage() {
     setIsExporting(true);
     let query = supabase
       .from('waitlist_signups')
-      .select('email, platform, created_at')
+      .select('email, platform, confirmed, created_at')
       .order('created_at', { ascending: false });
 
     if (search.trim()) query = query.ilike('email', `%${search.trim()}%`);
     if (platformFilter !== 'all') query = query.eq('platform', platformFilter);
+    if (confirmedFilter !== 'all') query = query.eq('confirmed', confirmedFilter === 'confirmed');
 
     const { data, error } = await query;
     setIsExporting(false);
@@ -80,8 +84,8 @@ export default function WaitlistPage() {
       return;
     }
 
-    const header = 'email,platform,created_at';
-    const lines = data.map((r) => `${r.email},${r.platform},${r.created_at}`);
+    const header = 'email,platform,confirmed,created_at';
+    const lines = data.map((r) => `${r.email},${r.platform},${r.confirmed},${r.created_at}`);
     const csv = [header, ...lines].join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -126,6 +130,12 @@ export default function WaitlistPage() {
           <option value="ios">iOS</option>
           <option value="android">Android</option>
         </select>
+        <select value={confirmedFilter} onChange={(e) => setConfirmedFilter(e.target.value as 'all' | 'confirmed' | 'pending')}
+          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:focus:ring-rose-900/30">
+          <option value="all">Alle</option>
+          <option value="confirmed">Bekræftede</option>
+          <option value="pending">Afventer bekræftelse</option>
+        </select>
       </div>
 
       <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
@@ -134,15 +144,16 @@ export default function WaitlistPage() {
             <tr>
               <th className="px-5 py-3">Email</th>
               <th className="px-5 py-3">Platform</th>
+              <th className="px-5 py-3">Status</th>
               <th className="px-5 py-3">Tilmeldt</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
             {isLoading ? (
-              <SkeletonRows columns={3} />
+              <SkeletonRows columns={4} />
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-5 py-12 text-center">
+                <td colSpan={4} className="px-5 py-12 text-center">
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 dark:bg-stone-800">
                     <Users className="h-5 w-5 text-stone-400" />
                   </div>
@@ -158,6 +169,17 @@ export default function WaitlistPage() {
                       {row.platform === 'ios' ? <Apple size={12} /> : <Smartphone size={12} />}
                       {row.platform === 'ios' ? 'iOS' : 'Android'}
                     </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    {row.confirmed ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+                        <CheckCircle2 size={12} /> Bekræftet
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+                        <Clock size={12} /> Afventer
+                      </span>
+                    )}
                   </td>
                   <td className="px-5 py-3.5 text-xs text-stone-400 dark:text-stone-500">{formatDate(row.created_at)}</td>
                 </tr>

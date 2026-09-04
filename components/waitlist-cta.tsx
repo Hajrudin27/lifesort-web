@@ -94,8 +94,8 @@ export function WaitlistCta({ variant = 'light' }: { variant?: 'light' | 'dark' 
             {isSubmitted ? (
               <div className="mt-4 text-center">
                 <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-600" />
-                <h2 className="mt-3 text-base font-bold text-stone-900">Du er på listen!</h2>
-                <p className="mt-1 text-sm text-stone-600">Vi skriver til dig, så snart LifeSort er klar til {activePlatform === 'ios' ? 'iOS' : 'Android'}.</p>
+                <h2 className="mt-3 text-base font-bold text-stone-900">Tjek din indbakke</h2>
+                <p className="mt-1 text-sm text-stone-600">Vi har sendt en bekræftelses-email til {email} — klik på linket i den, så er du officielt på listen til {activePlatform === 'ios' ? 'iOS' : 'Android'}.</p>
               </div>
             ) : (
               <>

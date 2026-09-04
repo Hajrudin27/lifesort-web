@@ -5,6 +5,7 @@ import { PublicFooter } from '@/components/public-footer';
 import { WaitlistCta } from '@/components/waitlist-cta';
 import { PhoneMockup } from '@/components/phone-mockup';
 import { ScrollReveal } from '@/components/scroll-reveal';
+import { FounderStory } from '@/components/founder-story';
 
 const heroFeatures = [
   { icon: Utensils, title: 'Madplan & indkøb', description: 'Automatisk ugentlig madplan der rammer dit budget, med opskrifter og tilbud fra dine butikker.', tint: 'bg-amber-100 text-amber-600' },
@@ -85,7 +86,9 @@ export default function Home() {
               ))}
             </ScrollReveal>
           </div>
-        </section>
+          </section>
+
+        <FounderStory />
 
         {/* Closing CTA */}
         <section className="border-t border-stone-200 bg-gradient-to-br from-rose-50 via-stone-50 to-amber-50">

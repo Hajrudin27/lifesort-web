@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { LayoutDashboard, Tag, BookOpen, Percent, Inbox, Users, Milestone, Activity, ShieldCheck, ChefHat, HeartPulse } from 'lucide-react';
+import { LayoutDashboard, Tag, BookOpen, Percent, Inbox, Users, Milestone, Activity, ShieldCheck, ChefHat, HeartPulse, DatabaseBackup } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import SignOutButton from './sign-out-button';
 import { AdminUserProvider } from '@/components/admin-user-context';
@@ -61,6 +61,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <AdminNavLink href="/admin/timeline" icon={<Milestone size={17} />} label="Tidslinje" />
           <AdminNavLink href="/admin/activity" icon={<Activity size={17} />} label="Aktivitet" />
           <AdminNavLink href="/admin/admins" icon={<ShieldCheck size={17} />} label="Admins" />
+          <AdminNavLink href="/admin/settings/health" icon={<Activity size={17} />} label="Sundhedstjek" />
+          <AdminNavLink href="/admin/settings/export" icon={<DatabaseBackup size={17} />} label="Eksportér data" />
 
           <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
             Mad

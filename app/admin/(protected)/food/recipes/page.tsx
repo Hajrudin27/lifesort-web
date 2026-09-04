@@ -26,6 +26,7 @@ type RecipeRow = {
   fat: number | null;
   tags: string[];
   image_url: string | null;
+  published: boolean;
 };
 
 const PAGE_SIZE = 20;
@@ -69,6 +70,7 @@ export default function RecipesPage() {
   const [fat, setFat] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [published, setPublished] = useState(true);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -100,7 +102,7 @@ export default function RecipesPage() {
     setEditingId(null); setName(''); setMealType('dinner');
     setIngredients([emptyIngredient()]); setMinutes(''); setInstructions('');
     setCalories(''); setProtein(''); setCarbs(''); setFat(''); setTagsInput('');
-    setImageUrl(null); setShowForm(false);
+    setImageUrl(null); setPublished(true); setShowForm(false);
   };
 
   const startEdit = (row: RecipeRow) => {
@@ -116,6 +118,7 @@ export default function RecipesPage() {
     setFat(row.fat?.toString() ?? '');
     setTagsInput(row.tags.join(', '));
     setImageUrl(row.image_url);
+    setPublished(row.published);
     setShowForm(true);
   };
 
@@ -163,6 +166,7 @@ export default function RecipesPage() {
       fat: fat.trim() ? parseFloat(fat) : null,
       tags: tagsInput.trim() ? tagsInput.split(',').map((t) => t.trim()).filter(Boolean) : [],
       image_url: imageUrl,
+      published,
       updated_at: new Date().toISOString(),
     };
 
@@ -309,9 +313,35 @@ export default function RecipesPage() {
               <select value={mealType} onChange={(e) => setMealType(e.target.value as MealType)}
                 className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-amber-900/30">
                 {MEAL_TYPES.map((m) => <option key={m} value={m}>{MEAL_LABELS[m]}</option>)}
-              </select>
+                </select>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setPublished(!published)}
+            className={`mt-4 flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
+              published
+                ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10'
+                : 'border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10'
+            }`}
+          >
+            <div>
+              <p className={`text-sm font-semibold ${published ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300'}`}>
+                {published ? 'Udgivet' : 'Kladde'}
+              </p>
+              <p className={`text-xs ${published ? 'text-emerald-700/70 dark:text-emerald-400/70' : 'text-amber-700/70 dark:text-amber-400/70'}`}>
+                {published
+                  ? 'Kan bruges af madplan-algoritmen og forhåndsvisningen'
+                  : 'Skjult for algoritmen, indtil den udgives — synlig kun her i admin'}
+              </p>
+            </div>
+            <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+              published ? 'bg-emerald-600 text-white' : 'bg-amber-600 text-white'
+            }`}>
+              {published ? 'Skift til kladde' : 'Udgiv'}
+            </span>
+          </button>
 
           <div className="mt-4">
             <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Ingredienser</label>
@@ -453,10 +483,15 @@ export default function RecipesPage() {
                           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-stone-100 text-stone-300 dark:bg-stone-800 dark:text-stone-600">
                             <ImagePlus size={14} />
                           </div>
-                        )}
-                        <span className="font-medium text-stone-900 dark:text-stone-100">{row.name}</span>
-                      </div>
-                    </td>
+                                                )}
+                                                <span className="font-medium text-stone-900 dark:text-stone-100">{row.name}</span>
+                                                {!row.published && (
+                                                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+                                                    Kladde
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </td>
                     <td className="px-5 py-3.5">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${MEAL_COLORS[row.meal_type]}`}>
                         {MEAL_LABELS[row.meal_type]}

@@ -29,7 +29,7 @@ export default function MealPlanPreviewPage() {
     setIsLoadingData(true);
     const [storesRes, recipesRes, offersRes, pricesRes] = await Promise.all([
       supabase.from('distinct_stores').select('store'),
-      supabase.from('global_recipes').select('id, name, meal_type, ingredients'),
+      supabase.from('global_recipes').select('id, name, meal_type, ingredients').eq('published', true),
       supabase.from('global_offers').select('id, offer_price, valid_from, valid_to, standard_price:global_standard_prices(product_name, store)'),
       supabase.from('global_standard_prices').select('id, product_name, store, price'),
     ]);
