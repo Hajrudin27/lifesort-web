@@ -71,6 +71,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <AdminNavLink href="/admin/food/preview" icon={<ChefHat size={17} />} label="Forhåndsvis madplan" />
 
           <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
+            Sundhed
+          </p>
+          <AdminNavLink href="/admin/health/conditions" icon={<HeartPulse size={17} />} label="Tilstande" />
+          <AdminNavLink href="/admin/health/symptoms" icon={<HeartPulse size={17} />} label="Symptomordbog" />
+
+          <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
             Support
           </p>
           <AdminNavLink href="/admin/tickets" icon={<Inbox size={17} />} label="Supportsager" badge={openTicketsCount ?? 0} />

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, LayoutDashboard, Tag, BookOpen, Percent, Inbox, Users,
-  Milestone, Activity, ShieldCheck, CornerDownLeft, ChefHat,
+  Milestone, Activity, ShieldCheck, CornerDownLeft, ChefHat, HeartPulse,
 } from 'lucide-react';
 
 type PaletteItem = {
@@ -24,6 +24,8 @@ const ITEMS: PaletteItem[] = [
   { label: 'Ugens tilbud', description: 'Aktive og kommende tilbud', href: '/admin/food/offers', icon: Percent, keywords: ['tilbud', 'rabat', 'mad'] },
   { label: 'Opskrifter', description: 'Madplanens opskriftsbibliotek', href: '/admin/food/recipes', icon: BookOpen, keywords: ['opskrift', 'mad', 'ingrediens'] },
   { label: 'Forhåndsvis madplan', description: 'Test madplan-algoritmen på jeres data', href: '/admin/food/preview', icon: ChefHat, keywords: ['madplan', 'preview', 'test', 'algoritme'] },
+  { label: 'Sundhedstilstande', description: 'Cyklus-appens sundhedsinfo om tilstande', href: '/admin/health/conditions', icon: HeartPulse, keywords: ['sundhed', 'cyklus', 'tilstand', 'health'] },
+  { label: 'Symptomordbog', description: 'Cyklus-appens symptombeskrivelser', href: '/admin/health/symptoms', icon: HeartPulse, keywords: ['symptom', 'cyklus', 'sundhed', 'health'] },
   { label: 'Supportsager', description: 'Indkomne beskeder fra brugere', href: '/admin/tickets', icon: Inbox, keywords: ['support', 'besked', 'sag', 'kontakt'] },
   { label: 'Venteliste', description: 'Tilmeldte til lanceringen', href: '/admin/waitlist', icon: Users, keywords: ['venteliste', 'tilmelding', 'email'] },
 ];
