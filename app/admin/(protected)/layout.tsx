@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { LayoutDashboard, Tag, BookOpen, Percent, Inbox, Users, Milestone, Activity, ShieldCheck, Search, ChefHat } from 'lucide-react';
+import { LayoutDashboard, Tag, BookOpen, Percent, Inbox, Users, Milestone, Activity, ShieldCheck, ChefHat, HeartPulse } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import SignOutButton from './sign-out-button';
 import { AdminUserProvider } from '@/components/admin-user-context';
@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { AdminNavLink } from '@/components/admin-nav-link';
 import { CommandPalette } from '@/components/command-palette';
+import { SearchTriggerButton } from '@/components/search-trigger-button';
 
 export const metadata = {
   title: 'Admin',
@@ -49,14 +50,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <span className="text-sm font-bold text-white">LifeSort Admin</span>
         </div>
 
-        <button
-          onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-          className="mb-5 flex items-center gap-2 rounded-xl border border-stone-700 bg-stone-800/50 px-3 py-2 text-sm text-stone-400 transition hover:bg-stone-800"
-        >
-          <Search size={14} />
-          <span className="flex-1 text-left">Søg...</span>
-          <kbd className="rounded border border-stone-700 px-1.5 py-0.5 text-[10px] font-medium">⌘K</kbd>
-        </button>
+        <SearchTriggerButton />
 
         <nav className="flex-1 space-y-1">
           <AdminNavLink href="/admin/dashboard" icon={<LayoutDashboard size={17} />} label="Oversigt" />
