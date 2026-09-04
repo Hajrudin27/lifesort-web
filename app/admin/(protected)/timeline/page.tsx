@@ -3,14 +3,14 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Milestone, Plus, X, Pencil, Trash2, CheckCircle2, CircleDashed,
-  Clock3, AlertTriangle, Sparkles,
+  Clock3, AlertTriangle, Sparkles, Check, Archive, RotateCcw, Inbox,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { logActivity } from '@/lib/activity-log';
 import { useAdminUser } from '@/components/admin-user-context';
 
-type Owner = 'hajrudin' | 'walid' | 'begge';
+type Owner = 'hajrudin' | 'walid';
 type Status = 'upcoming' | 'in_progress' | 'done';
 type ComputedStatus = 'done' | 'overdue' | 'in_progress' | 'upcoming';
 
@@ -27,13 +27,11 @@ type TimelineRow = {
 const OWNER_LABEL: Record<Owner, string> = {
   hajrudin: 'Hajrudin',
   walid: 'Walid',
-  begge: 'Begge',
 };
 
-const OWNER_STYLE: Record<Owner, string> = {
-  hajrudin: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400',
-  walid: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400',
-  begge: 'bg-stone-200 text-stone-700 dark:bg-stone-800 dark:text-stone-300',
+const OWNER_COLOR: Record<Owner, { bg: string; text: string; ring: string }> = {
+  hajrudin: { bg: 'bg-sky-500', text: 'text-sky-700 dark:text-sky-400', ring: 'ring-sky-100 dark:ring-sky-500/20' },
+  walid: { bg: 'bg-violet-500', text: 'text-violet-700 dark:text-violet-400', ring: 'ring-violet-100 dark:ring-violet-500/20' },
 };
 
 const STATUS_META: Record<ComputedStatus, { label: string; dot: string; ring: string; text: string; icon: typeof CheckCircle2 }> = {
@@ -60,6 +58,24 @@ function formatDate(dateStr: string) {
   });
 }
 
+function monthLabel(dateStr: string) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const label = d.toLocaleDateString('da-DK', { month: 'long', year: 'numeric' });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function OwnerBadge({ owner }: { owner: Owner }) {
+  const c = OWNER_COLOR[owner];
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2 text-[11px] font-semibold ${c.text} bg-white ring-1 dark:bg-stone-900 ${c.ring}`}>
+      <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white ${c.bg}`}>
+        {OWNER_LABEL[owner][0]}
+      </span>
+      {OWNER_LABEL[owner]}
+    </span>
+  );
+}
+
 type ListItem = { kind: 'event'; row: TimelineRow } | { kind: 'today' };
 
 export default function TimelinePage() {
@@ -70,6 +86,7 @@ export default function TimelinePage() {
   const [rows, setRows] = useState<TimelineRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [ownerFilter, setOwnerFilter] = useState<Owner | 'all'>('all');
+  const [view, setView] = useState<'active' | 'archive'>('active');
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -77,7 +94,7 @@ export default function TimelinePage() {
   const [formDescription, setFormDescription] = useState('');
   const [formDate, setFormDate] = useState(todayStr());
   const [formStatus, setFormStatus] = useState<Status>('upcoming');
-  const [formOwner, setFormOwner] = useState<Owner>('begge');
+  const [formOwner, setFormOwner] = useState<Owner>('hajrudin');
   const [isSaving, setIsSaving] = useState(false);
 
   const [detailRow, setDetailRow] = useState<TimelineRow | null>(null);
@@ -99,18 +116,27 @@ export default function TimelinePage() {
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
 
-  const filteredRows = useMemo(
+  const ownerFilteredRows = useMemo(
     () => (ownerFilter === 'all' ? rows : rows.filter((r) => r.owner === ownerFilter)),
     [rows, ownerFilter]
   );
 
-  // Weave a "today" marker into the sorted list, at its chronological position.
+  const activeRows = useMemo(() => ownerFilteredRows.filter((r) => r.status !== 'done'), [ownerFilteredRows]);
+  const archivedRows = useMemo(
+    () => ownerFilteredRows.filter((r) => r.status === 'done').sort((a, b) => b.event_date.localeCompare(a.event_date)),
+    [ownerFilteredRows]
+  );
+
+  const activeCount = useMemo(() => rows.filter((r) => r.status !== 'done').length, [rows]);
+  const archivedCount = useMemo(() => rows.filter((r) => r.status === 'done').length, [rows]);
+
+  // Væv en "i dag"-markør ind i den sorterede aktive liste, på dens kronologiske plads.
   const items = useMemo<ListItem[]>(() => {
     const today = todayStr();
     const result: ListItem[] = [];
     let inserted = false;
 
-    filteredRows.forEach((row) => {
+    activeRows.forEach((row) => {
       if (!inserted && row.event_date >= today) {
         result.push({ kind: 'today' });
         inserted = true;
@@ -120,7 +146,18 @@ export default function TimelinePage() {
     if (!inserted) result.push({ kind: 'today' });
 
     return result;
-  }, [filteredRows]);
+  }, [activeRows]);
+
+  const archivedByMonth = useMemo(() => {
+    const groups = new Map<string, TimelineRow[]>();
+    archivedRows.forEach((row) => {
+      const key = row.event_date.slice(0, 7);
+      const arr = groups.get(key) ?? [];
+      arr.push(row);
+      groups.set(key, arr);
+    });
+    return Array.from(groups.entries()).map(([, items]) => ({ label: monthLabel(items[0].event_date), items }));
+  }, [archivedRows]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -128,7 +165,7 @@ export default function TimelinePage() {
     setFormDescription('');
     setFormDate(todayStr());
     setFormStatus('upcoming');
-    setFormOwner('begge');
+    setFormOwner('hajrudin');
   };
 
   const openCreateForm = () => {
@@ -167,7 +204,6 @@ export default function TimelinePage() {
     };
 
     if (editingId) {
-      // Optimistisk: opdater posten på tidslinjen med det samme.
       const idToUpdate = editingId;
       setRows((prev) => prev.map((r) => (r.id === idToUpdate ? { ...r, ...payload } : r)));
       closeForm();
@@ -208,6 +244,39 @@ export default function TimelinePage() {
     );
   };
 
+  // Ét klik arkiverer opgaven — flytter den øjeblikkeligt væk fra den aktive tidslinje.
+  const handleArchive = (row: TimelineRow) => {
+    const previousStatus = row.status;
+    setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, status: 'done' } : r)));
+    setDetailRow(null);
+    showUndoToast(
+      `"${row.title}" arkiveret.`,
+      async () => {
+        const { error } = await supabase.from('timeline_events').update({ status: 'done' }).eq('id', row.id);
+        if (error) { showToast('Kunne ikke arkivere posten.', 'error'); fetchRows(); return; }
+        logActivity(supabase, {
+          actorId: adminUser.id, actorName: adminUser.name,
+          action: 'updated', entityType: 'timeline_event',
+          entityLabel: `${row.title} (arkiveret)`,
+        });
+      },
+      () => setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, status: previousStatus } : r)))
+    );
+  };
+
+  const handleReopen = async (row: TimelineRow) => {
+    setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, status: 'in_progress' } : r)));
+    setDetailRow(null);
+    const { error } = await supabase.from('timeline_events').update({ status: 'in_progress' }).eq('id', row.id);
+    if (error) { showToast('Kunne ikke genåbne posten.', 'error'); fetchRows(); return; }
+    showToast('Post genåbnet.');
+    logActivity(supabase, {
+      actorId: adminUser.id, actorName: adminUser.name,
+      action: 'updated', entityType: 'timeline_event',
+      entityLabel: `${row.title} (genåbnet)`,
+    });
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
@@ -217,7 +286,7 @@ export default function TimelinePage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Tidslinje</h1>
-            <p className="text-sm text-stone-500 dark:text-stone-400">{rows.length} {rows.length === 1 ? 'post' : 'poster'} i alt</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400">{activeCount} aktive · {archivedCount} arkiveret</p>
           </div>
         </div>
         <button onClick={openCreateForm}
@@ -227,103 +296,174 @@ export default function TimelinePage() {
         </button>
       </div>
 
-      {/* Owner filter */}
-      <div className="mt-6 flex flex-wrap gap-2">
-        {(['all', 'hajrudin', 'walid', 'begge'] as const).map((o) => (
-          <button
-            key={o}
-            onClick={() => setOwnerFilter(o)}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-              ownerFilter === o
-                ? 'bg-stone-900 text-white dark:bg-stone-700'
-                : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50 dark:bg-stone-900 dark:text-stone-300 dark:border-stone-700 dark:hover:bg-stone-800'
-            }`}
-          >
-            {o === 'all' ? 'Alle' : OWNER_LABEL[o]}
+      {/* View + owner filters */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex overflow-hidden rounded-xl border border-stone-200 bg-white text-sm dark:border-stone-700 dark:bg-stone-900">
+          <button onClick={() => setView('active')}
+            className={`flex items-center gap-1.5 px-4 py-2 font-semibold transition ${view === 'active' ? 'bg-stone-900 text-white dark:bg-stone-700' : 'text-stone-600 hover:bg-stone-50 dark:text-stone-300 dark:hover:bg-stone-800'}`}>
+            <Milestone size={14} /> Aktive
           </button>
-        ))}
+          <button onClick={() => setView('archive')}
+            className={`flex items-center gap-1.5 border-l border-stone-200 px-4 py-2 font-semibold transition dark:border-stone-700 ${view === 'archive' ? 'bg-stone-900 text-white dark:bg-stone-700' : 'text-stone-600 hover:bg-stone-50 dark:text-stone-300 dark:hover:bg-stone-800'}`}>
+            <Archive size={14} /> Arkiv
+          </button>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {(['all', 'hajrudin', 'walid'] as const).map((o) => (
+            <button
+              key={o}
+              onClick={() => setOwnerFilter(o)}
+              className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                ownerFilter === o
+                  ? 'bg-stone-900 text-white dark:bg-stone-700'
+                  : 'border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800'
+              }`}
+            >
+              {o === 'all' ? 'Alle' : OWNER_LABEL[o]}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Timeline */}
-      <div className="relative mt-10 pl-2">
-        {isLoading ? (
-          <div className="flex flex-col gap-6">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex gap-4">
-                <div className="h-4 w-4 shrink-0 animate-pulse rounded-full bg-stone-200 dark:bg-stone-800" />
-                <div className="h-16 flex-1 animate-pulse rounded-2xl bg-stone-100 dark:bg-stone-800" />
-              </div>
-            ))}
-          </div>
-        ) : items.length === 1 ? (
-          <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center dark:border-stone-800 dark:bg-stone-900">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 dark:bg-stone-800">
-              <Milestone className="h-5 w-5 text-stone-400" />
-            </div>
-            <p className="mt-3 text-sm font-medium text-stone-500 dark:text-stone-400">Ingen poster på tidslinjen endnu</p>
-            <p className="text-xs text-stone-400 dark:text-stone-500">Tilføj jeres første milepæl eller deadline ovenfor.</p>
-          </div>
-        ) : (
-          <div className="relative">
-            {/* The spine */}
-            <div className="absolute left-[7px] top-2 bottom-2 w-px bg-gradient-to-b from-stone-200 via-stone-200 to-transparent dark:from-stone-800 dark:via-stone-800" />
-
+      {view === 'active' ? (
+        <div className="relative mt-8 pl-2">
+          {isLoading ? (
             <div className="flex flex-col gap-6">
-              {items.map((item) => {
-                if (item.kind === 'today') {
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="h-4 w-4 shrink-0 animate-pulse rounded-full bg-stone-200 dark:bg-stone-800" />
+                  <div className="h-16 flex-1 animate-pulse rounded-2xl bg-stone-100 dark:bg-stone-800" />
+                </div>
+              ))}
+            </div>
+          ) : items.length === 1 ? (
+            <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center dark:border-stone-800 dark:bg-stone-900">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 dark:bg-stone-800">
+                <Milestone className="h-5 w-5 text-stone-400" />
+              </div>
+              <p className="mt-3 text-sm font-medium text-stone-500 dark:text-stone-400">Ingen aktive poster</p>
+              <p className="text-xs text-stone-400 dark:text-stone-500">Tilføj jeres næste milepæl eller deadline ovenfor.</p>
+            </div>
+          ) : (
+            <div className="relative">
+              <div className="absolute left-[7px] top-2 bottom-2 w-px bg-gradient-to-b from-stone-200 via-stone-200 to-transparent dark:from-stone-800 dark:via-stone-800" />
+
+              <div className="flex flex-col gap-6">
+                {items.map((item) => {
+                  if (item.kind === 'today') {
+                    return (
+                      <div key="today" className="relative flex items-center gap-4 py-1">
+                        <span className="relative z-10 flex h-4 w-4 shrink-0 items-center justify-center">
+                          <span className="absolute h-4 w-4 animate-ping rounded-full bg-rose-400/60" />
+                          <span className="relative h-2.5 w-2.5 rounded-full bg-rose-500" />
+                        </span>
+                        <div className="flex flex-1 items-center gap-3">
+                          <span className="text-xs font-bold uppercase tracking-wide text-rose-600 dark:text-rose-400">I dag</span>
+                          <div className="h-px flex-1 bg-rose-200 dark:bg-rose-500/20" />
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const row = item.row;
+                  const cs = computeStatus(row);
+                  const meta = STATUS_META[cs];
+                  const StatusIcon = meta.icon;
+
                   return (
-                    <div key="today" className="relative flex items-center gap-4 py-1">
-                      <span className="relative z-10 flex h-4 w-4 shrink-0 items-center justify-center">
-                        <span className="absolute h-4 w-4 animate-ping rounded-full bg-rose-400/60" />
-                        <span className="relative h-2.5 w-2.5 rounded-full bg-rose-500" />
+                    <div key={row.id} className="group relative flex gap-4">
+                      <span className={`relative z-10 mt-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${meta.dot} ring-4 ${meta.ring}`}>
+                        {cs === 'in_progress' && (
+                          <span className="absolute h-4 w-4 animate-ping rounded-full bg-amber-400/50" />
+                        )}
                       </span>
-                      <div className="flex flex-1 items-center gap-3">
-                        <span className="text-xs font-bold uppercase tracking-wide text-rose-600 dark:text-rose-400">I dag</span>
-                        <div className="h-px flex-1 bg-rose-200 dark:bg-rose-500/20" />
+
+                      <div className="flex flex-1 items-start gap-2">
+                        <button
+                          onClick={() => setDetailRow(row)}
+                          className="flex-1 rounded-2xl border border-stone-200 bg-white p-4 text-left shadow-sm shadow-stone-900/5 transition hover:border-stone-300 hover:shadow-md dark:border-stone-800 dark:bg-stone-900 dark:hover:border-stone-700"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-medium text-stone-400 dark:text-stone-500">{formatDate(row.event_date)}</span>
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${meta.text} ${meta.ring} ring-1`}>
+                              <StatusIcon size={11} />
+                              {meta.label}
+                            </span>
+                            <OwnerBadge owner={row.owner} />
+                          </div>
+                          <h3 className="mt-2 font-semibold text-stone-900 dark:text-stone-100">{row.title}</h3>
+                          {row.description && (
+                            <p className="mt-1 line-clamp-1 text-sm text-stone-500 dark:text-stone-400">{row.description}</p>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => handleArchive(row)}
+                          title="Marker som færdig"
+                          className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-400 opacity-0 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600 group-hover:opacity-100 dark:border-stone-700 dark:bg-stone-900 dark:hover:bg-emerald-500/10"
+                        >
+                          <Check size={16} />
+                        </button>
                       </div>
                     </div>
                   );
-                }
-
-                const row = item.row;
-                const cs = computeStatus(row);
-                const meta = STATUS_META[cs];
-                const StatusIcon = meta.icon;
-
-                return (
-                  <div key={row.id} className="relative flex gap-4">
-                    <span className={`relative z-10 mt-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${meta.dot} ring-4 ${meta.ring}`}>
-                      {cs === 'in_progress' && (
-                        <span className="absolute h-4 w-4 animate-ping rounded-full bg-amber-400/50" />
-                      )}
-                    </span>
-
-                    <button
-                      onClick={() => setDetailRow(row)}
-                      className="flex-1 rounded-2xl border border-stone-200 bg-white p-4 text-left shadow-sm shadow-stone-900/5 transition hover:border-stone-300 hover:shadow-md dark:border-stone-800 dark:bg-stone-900 dark:hover:border-stone-700"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-medium text-stone-400 dark:text-stone-500">{formatDate(row.event_date)}</span>
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${meta.text} ${meta.ring} ring-1`}>
-                          <StatusIcon size={11} />
-                          {meta.label}
-                        </span>
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${OWNER_STYLE[row.owner]}`}>
-                          {OWNER_LABEL[row.owner]}
-                        </span>
-                      </div>
-                      <h3 className="mt-2 font-semibold text-stone-900 dark:text-stone-100">{row.title}</h3>
-                      {row.description && (
-                        <p className="mt-1 line-clamp-1 text-sm text-stone-500 dark:text-stone-400">{row.description}</p>
-                      )}
-                    </button>
-                  </div>
-                );
-              })}
+                })}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      ) : (
+        <div className="mt-8">
+          {isLoading ? (
+            <div className="flex flex-col gap-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-14 animate-pulse rounded-2xl bg-stone-100 dark:bg-stone-800" />
+              ))}
+            </div>
+          ) : archivedByMonth.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center dark:border-stone-800 dark:bg-stone-900">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 dark:bg-stone-800">
+                <Inbox className="h-5 w-5 text-stone-400" />
+              </div>
+              <p className="mt-3 text-sm font-medium text-stone-500 dark:text-stone-400">Intet arkiveret endnu</p>
+              <p className="text-xs text-stone-400 dark:text-stone-500">Poster markeret som færdige på den aktive tidslinje havner her.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-8">
+              {archivedByMonth.map((group) => (
+                <div key={group.label}>
+                  <p className="mb-3 text-xs font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">{group.label}</p>
+                  <div className="flex flex-col gap-2">
+                    {group.items.map((row) => (
+                      <div key={row.id}
+                        className="group flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-3.5 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
+                          <CheckCircle2 size={16} />
+                        </span>
+                        <button onClick={() => setDetailRow(row)} className="min-w-0 flex-1 text-left">
+                          <p className="truncate font-medium text-stone-700 line-through decoration-stone-300 dark:text-stone-300 dark:decoration-stone-600">
+                            {row.title}
+                          </p>
+                          <p className="text-xs text-stone-400 dark:text-stone-500">{formatDate(row.event_date)}</p>
+                        </button>
+                        <OwnerBadge owner={row.owner} />
+                        <button
+                          onClick={() => handleReopen(row)}
+                          title="Genåbn"
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-stone-300 opacity-0 transition hover:bg-stone-100 hover:text-stone-600 group-hover:opacity-100 dark:hover:bg-stone-800 dark:hover:text-stone-300"
+                        >
+                          <RotateCcw size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Detail modal */}
       {detailRow && (() => {
@@ -340,9 +480,7 @@ export default function TimelinePage() {
                     <StatusIcon size={11} />
                     {meta.label}
                   </span>
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${OWNER_STYLE[detailRow.owner]}`}>
-                    {OWNER_LABEL[detailRow.owner]}
-                  </span>
+                  <OwnerBadge owner={detailRow.owner} />
                 </div>
                 <button onClick={() => setDetailRow(null)} className="text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300">
                   <X size={18} />
@@ -364,10 +502,17 @@ export default function TimelinePage() {
                   <Trash2 size={14} /> Slet
                 </button>
                 <div className="flex gap-2">
-                  <button onClick={() => setDetailRow(null)}
-                    className="rounded-xl border border-stone-200 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800">
-                    Luk
-                  </button>
+                  {detailRow.status === 'done' ? (
+                    <button onClick={() => handleReopen(detailRow)}
+                      className="flex items-center gap-1.5 rounded-xl border border-stone-200 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800">
+                      <RotateCcw size={14} /> Genåbn
+                    </button>
+                  ) : (
+                    <button onClick={() => handleArchive(detailRow)}
+                      className="flex items-center gap-1.5 rounded-xl border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/10">
+                      <Check size={14} /> Marker færdig
+                    </button>
+                  )}
                   <button onClick={() => openEditForm(detailRow)}
                     className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800 dark:bg-stone-700 dark:hover:bg-stone-600">
                     <Pencil size={14} /> Redigér
@@ -424,17 +569,20 @@ export default function TimelinePage() {
               <div>
                 <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Hvem</label>
                 <div className="mt-1 flex gap-2">
-                  {(['hajrudin', 'walid', 'begge'] as const).map((o) => (
+                  {(['hajrudin', 'walid'] as const).map((o) => (
                     <button
                       key={o}
                       type="button"
                       onClick={() => setFormOwner(o)}
-                      className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                      className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
                         formOwner === o
                           ? 'border-stone-900 bg-stone-900 text-white dark:border-stone-600 dark:bg-stone-700'
                           : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700'
                       }`}
                     >
+                      <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${OWNER_COLOR[o].bg}`}>
+                        {OWNER_LABEL[o][0]}
+                      </span>
                       {OWNER_LABEL[o]}
                     </button>
                   ))}
