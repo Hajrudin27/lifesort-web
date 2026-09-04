@@ -4,6 +4,7 @@ import { PublicHeader } from '@/components/public-header';
 import { PublicFooter } from '@/components/public-footer';
 import { WaitlistCta } from '@/components/waitlist-cta';
 import { PhoneMockup } from '@/components/phone-mockup';
+import { HeroSubtitle } from '@/components/hero-subtitle';
 import { ScrollReveal } from '@/components/scroll-reveal';
 import { FounderStory } from '@/components/founder-story';
 import { modules } from '@/lib/modules-content';
@@ -22,7 +23,7 @@ export default function Home() {
 
           <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-16 px-6 py-20 sm:py-28 lg:grid-cols-2 lg:py-32">
             <div className="text-center lg:text-left">
-              <div className="mx-auto inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-rose-200 lg:mx-0">
+            <div className="mx-auto inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-rose-200 lg:mx-0">
                 <Rocket size={13} />
                 Kommer snart
               </div>
@@ -31,9 +32,7 @@ export default function Home() {
                 Dit liv,<br />samlet ét sted.
               </h1>
 
-              <p className="mx-auto mt-6 max-w-md text-lg text-stone-300 lg:mx-0">
-                Alt det, der plejer at leve i ti forskellige apps og alt for mange noter — samlet i én, bygget til at gøre hverdagen lettere.
-              </p>
+              <HeroSubtitle />
 
               <WaitlistCta variant="dark" />
 
