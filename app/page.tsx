@@ -1,18 +1,12 @@
 import Link from 'next/link';
-import { Rocket, Utensils, Wallet, Briefcase, HeartPulse } from 'lucide-react';
+import { Rocket } from 'lucide-react';
 import { PublicHeader } from '@/components/public-header';
 import { PublicFooter } from '@/components/public-footer';
 import { WaitlistCta } from '@/components/waitlist-cta';
 import { PhoneMockup } from '@/components/phone-mockup';
 import { ScrollReveal } from '@/components/scroll-reveal';
 import { FounderStory } from '@/components/founder-story';
-
-const heroFeatures = [
-  { icon: Utensils, title: 'Madplan & indkøb', description: 'Automatisk ugentlig madplan der rammer dit budget, med opskrifter og tilbud fra dine butikker.', tint: 'bg-amber-100 text-amber-600' },
-  { icon: Wallet, title: 'Økonomi', description: 'Overblik over udgifter, opsparingsmål og indkomst — samlet ét sted.', tint: 'bg-emerald-100 text-emerald-600' },
-  { icon: Briefcase, title: 'Karriere', description: 'CV-builder, jobansøgninger og kompetenceoversigt til at holde styr på din jobsøgning.', tint: 'bg-violet-100 text-violet-600' },
-  { icon: HeartPulse, title: 'Cyklus', description: 'Følg din cyklus med indsigt i mønstre og symptomer, privat og sikkert.', tint: 'bg-rose-100 text-rose-600' },
-];
+import { modules } from '@/lib/modules-content';
 
 const moreFeatures = ['Vaner', 'Hjemmet', 'Livsmål', 'Gøremål', 'Rejser', 'Garantier'];
 
@@ -54,40 +48,40 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Features */}
-        <section className="bg-[#FBF7F1]">
+                {/* Features */}
+                <section className="bg-[#FBF7F1]">
           <div className="mx-auto max-w-5xl px-6 py-20">
             <ScrollReveal>
               <h2 className="font-display text-center text-3xl font-semibold text-stone-900 sm:text-4xl">
                 Ti dele af din hverdag. Én app.
               </h2>
+              <p className="mt-2 text-center text-sm text-stone-500">Klik på et modul for at læse mere</p>
             </ScrollReveal>
 
-            <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {heroFeatures.map((f, i) => (
-                <ScrollReveal key={f.title} delay={i * 80}>
-                  <div className="rounded-2xl bg-white p-6">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${f.tint}`}>
-                      <f.icon className="h-5 w-5" strokeWidth={2.2} />
-                    </div>
-                    <h3 className="mt-4 text-base font-bold text-stone-900">{f.title}</h3>
-                    <p className="mt-1.5 text-sm text-stone-600">{f.description}</p>
-                  </div>
-                </ScrollReveal>
-              ))}
+            <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+              {modules.map((m, i) => {
+                const Icon = m.icon;
+                return (
+                  <ScrollReveal key={m.slug} delay={i * 60}>
+                    <Link
+                      href={`/modules/${m.slug}`}
+                      className="group flex h-full flex-col rounded-2xl bg-white p-5 transition hover:shadow-md"
+                    >
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${m.tint}`}>
+                        <Icon className="h-5 w-5" strokeWidth={2.2} />
+                      </div>
+                      <h3 className="mt-4 text-sm font-bold text-stone-900">{m.title}</h3>
+                      <p className="mt-1.5 flex-1 text-xs leading-relaxed text-stone-500">{m.tagline}</p>
+                      <span className="mt-3 text-xs font-semibold text-stone-400 transition group-hover:text-stone-900">
+                        Læs mere →
+                      </span>
+                    </Link>
+                  </ScrollReveal>
+                );
+              })}
             </div>
-
-            <ScrollReveal delay={200} className="mt-8 flex flex-wrap items-center justify-center gap-2">
-              <span className="text-sm font-medium text-stone-500">...og meget mere:</span>
-              {moreFeatures.map((f) => (
-                <span key={f} className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600">
-                  {f}
-                </span>
-              ))}
-            </ScrollReveal>
           </div>
-          </section>
-
+        </section>
         <FounderStory />
 
         {/* Closing CTA */}
