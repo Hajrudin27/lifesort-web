@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, LayoutDashboard, Tag, BookOpen, Percent, Inbox, Users,
-  Milestone, Activity, ShieldCheck, CornerDownLeft, ChefHat, HeartPulse, Loader2, DatabaseBackup, Copy,
+  Milestone, Activity, ShieldCheck, CornerDownLeft, ChefHat, HeartPulse, Loader2, DatabaseBackup, Copy, Rocket,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -24,8 +24,15 @@ type ContentResult = {
   icon: typeof Tag;
 };
 
+type PriceSearchRow = {
+  id: string;
+  name: string;
+  prices: { id: string; store: string; price: number }[];
+};
+
 const ITEMS: PaletteItem[] = [
   { label: 'Oversigt', description: 'Dashboard med nøgletal', href: '/admin/dashboard', icon: LayoutDashboard, keywords: ['dashboard', 'hjem', 'oversigt'] },
+  { label: 'Launch', description: 'Klarhedstjek før lancering', href: '/admin/launch', icon: Rocket, keywords: ['launch', 'lancering', 'klar', 'checkliste'] },
   { label: 'Tidslinje', description: 'Projekt-deadlines og milepæle', href: '/admin/timeline', icon: Milestone, keywords: ['deadline', 'milepæl', 'roadmap'] },
   { label: 'Aktivitet', description: 'Log over ændringer i panelet', href: '/admin/activity', icon: Activity, keywords: ['log', 'historik', 'aktivitetslog'] },
   { label: 'Admins', description: 'Hvem har adgang til panelet', href: '/admin/admins', icon: ShieldCheck, keywords: ['brugere', 'adgang', 'inviter'] },
@@ -78,7 +85,11 @@ export function CommandPalette() {
 
     (async () => {
       const [pricesRes, recipesRes, ticketsRes] = await Promise.all([
-        supabase.from('global_standard_prices').select('id, product_name, store').ilike('product_name', `%${q}%`).limit(4),
+        supabase
+          .from('products')
+          .select('id, name, prices:global_standard_prices(id, store, price)')
+          .ilike('name', `%${q}%`)
+          .limit(4),
         supabase.from('global_recipes').select('id, name').ilike('name', `%${q}%`).limit(4),
         supabase.from('support_tickets').select('id, subject, name').ilike('subject', `%${q}%`).limit(4),
       ]);
@@ -86,12 +97,22 @@ export function CommandPalette() {
       if (cancelled) return;
 
       const results: ContentResult[] = [
-        ...(pricesRes.data ?? []).map((p) => ({
-          label: p.product_name,
-          description: `Standardpris · ${p.store}`,
-          href: '/admin/food/prices',
-          icon: Tag,
-        })),
+        ...((pricesRes.data ?? []) as PriceSearchRow[]).map((p) => {
+          const stores = p.prices.map((price) => price.store);
+          const lowestPrice = p.prices.reduce<number | null>(
+            (lowest, price) => (lowest === null || price.price < lowest ? price.price : lowest),
+            null
+          );
+
+          return {
+            label: p.name,
+            description: lowestPrice === null
+              ? 'Vare uden standardpris'
+              : `Standardpris · ${stores.slice(0, 2).join(', ')}${stores.length > 2 ? ` +${stores.length - 2}` : ''} · fra ${lowestPrice.toFixed(2)} kr.`,
+            href: '/admin/food/prices',
+            icon: Tag,
+          };
+        }),
         ...(recipesRes.data ?? []).map((r) => ({
           label: r.name,
           description: 'Opskrift',
