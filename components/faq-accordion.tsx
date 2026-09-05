@@ -5,7 +5,7 @@ import {
   ChevronDown, Search, Sparkles, Shield, Puzzle, Mail,
 } from 'lucide-react';
 
-type Category = 'generelt' | 'moduler' | 'konto' | 'venteliste';
+import { faqs, type FaqCategory as Category } from '@/lib/modules-content';
 
 const CATEGORY_META: Record<Category, { label: string; icon: typeof Sparkles; tint: string }> = {
   generelt: { label: 'Generelt', icon: Sparkles, tint: 'bg-rose-100 text-rose-600' },
@@ -13,85 +13,6 @@ const CATEGORY_META: Record<Category, { label: string; icon: typeof Sparkles; ti
   konto: { label: 'Konto & data', icon: Shield, tint: 'bg-emerald-100 text-emerald-600' },
   venteliste: { label: 'Venteliste & lancering', icon: Mail, tint: 'bg-violet-100 text-violet-600' },
 };
-
-const faqs: { category: Category; question: string; answer: string }[] = [
-  {
-    category: 'generelt',
-    question: 'Hvad er LifeSort?',
-    answer:
-      'LifeSort er en app, der samler ti dele af hverdagen — madplan, økonomi, karriere, cyklus, vaner, hjemmet, livsmål, gøremål, rejser og garantier — i ét sted, så du slipper for at bruge en app til hver ting.',
-  },
-  {
-    category: 'generelt',
-    question: 'Hvilke platforme understøttes?',
-    answer: 'LifeSort er bygget til både iOS og Android, med samme funktioner på begge platforme.',
-  },
-  {
-    category: 'generelt',
-    question: 'Kan jeg bruge appen på flere sprog?',
-    answer: 'Ja, LifeSort understøtter både dansk og engelsk. Du kan skifte sprog under Indstillinger i appen.',
-  },
-  {
-    category: 'generelt',
-    question: 'Koster LifeSort noget?',
-    answer: 'Prismodellen er endnu ikke endeligt fastlagt. Vi opdaterer denne side, så snart den er på plads.',
-  },
-  {
-    category: 'moduler',
-    question: 'Hvordan virker madplan-modulet?',
-    answer:
-      'Du sætter et ugentligt budget og vælger dine faste butikker — LifeSort sammensætter så automatisk en plan for ugen ud fra aktuelle tilbud og en opskriftssamling, og genererer en indkøbsliste sorteret efter butik.',
-  },
-  {
-    category: 'moduler',
-    question: 'Kan jeg dele huslige opgaver med min partner?',
-    answer:
-      'Ja — i Hjemmet-modulet kan opgaver tildeles skiftevis mellem to personer, med automatisk rotation, hver gang en opgave markeres som færdig, hvis I ønsker det.',
-  },
-  {
-    category: 'moduler',
-    question: 'Er mine cyklus-data private?',
-    answer: 'Ja. Cyklus- og symptomdata er knyttet til din personlige konto og er aldrig synlige for andre — heller ikke os.',
-  },
-  {
-    category: 'moduler',
-    question: 'Kan jeg vedhæfte kvitteringer og garantibeviser?',
-    answer:
-      'Ja, både i Økonomi- og Garanti-modulet kan du fotografere kvitteringer direkte i appen og få en påmindelse, før en garanti udløber.',
-  },
-  {
-    category: 'konto',
-    question: 'Er mine data sikre?',
-    answer: 'Ja. Dine data er knyttet til din personlige konto og er ikke tilgængelige for andre brugere.',
-  },
-  {
-    category: 'konto',
-    question: 'Kan jeg eksportere mine egne data?',
-    answer:
-      'Ja — under Indstillinger i appen kan du downloade alle dine egne data som én fil, når som helst du ønsker det.',
-  },
-  {
-    category: 'konto',
-    question: 'Hvordan sletter jeg min konto?',
-    answer: 'Skriv til os via supportformularen nedenfor, så hjælper vi dig med at slette din konto og alle tilknyttede data.',
-  },
-  {
-    category: 'venteliste',
-    question: 'Hvad sker der, når jeg tilmelder mig ventelisten?',
-    answer:
-      'Du modtager en bekræftelses-email med det samme. Når du har bekræftet, er du officielt på listen, og vi skriver til dig igen, den dag appen er klar til din platform.',
-  },
-  {
-    category: 'venteliste',
-    question: 'Hvornår lancerer LifeSort?',
-    answer: 'Vi bygger appen åbent, modul for modul, og har endnu ikke en fast lanceringsdato — ventelisten er den bedste måde at få besked først.',
-  },
-  {
-    category: 'venteliste',
-    question: 'Jeg fik ikke en bekræftelses-email — hvad gør jeg?',
-    answer: 'Tjek lige dit spam-filter først. Kommer den stadig ikke frem efter et par minutter, så skriv til os via supportformularen, så undersøger vi det.',
-  },
-];
 
 export function FaqAccordion() {
   const [query, setQuery] = useState('');
