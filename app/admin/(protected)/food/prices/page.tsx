@@ -1,134 +1,154 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Tag, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, Percent, Square, CheckSquare } from 'lucide-react';
+import { Tag, Plus, Trash2, Search, ChevronDown, Pencil, Percent, Check, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { useConfirm } from '@/components/confirm-dialog';
 import { PriceCsvImport } from '@/components/price-csv-import';
 import { logActivity } from '@/lib/activity-log';
 import { useAdminUser } from '@/components/admin-user-context';
-import { SkeletonRows } from '@/components/skeleton-rows';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
-type PriceRow = {
+type StorePrice = {
   id: string;
-  product_name: string;
   store: string;
   price: number;
-  updated_at: string;
+  hasActiveOffer: boolean;
 };
 
-type ActiveOffer = {
+type ProductRow = {
   id: string;
-  standard_price_id: string;
-  offer_price: number;
-  valid_from: string;
-  valid_to: string;
+  name: string;
+  prices: StorePrice[];
 };
 
-const PAGE_SIZE = 25;
 const NEW_STORE_VALUE = '__new__';
 
 function todayStr() {
   return new Date().toISOString().split('T')[0];
 }
 
-export default function StandardPricesPage() {
+export default function ProductsPage() {
   const supabase = createClient();
   const { showToast, showUndoToast } = useToast();
   const confirm = useConfirm();
   const adminUser = useAdminUser();
 
-  const [rows, setRows] = useState<PriceRow[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [offersByPriceId, setOffersByPriceId] = useState<Record<string, ActiveOffer>>({});
-  const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState('');
-  const debouncedSearch = useDebouncedValue(search, 300);
-  const [storeFilter, setStoreFilter] = useState<string>('all');
+  const [products, setProducts] = useState<ProductRow[]>([]);
   const [stores, setStores] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const [newProduct, setNewProduct] = useState('');
+  const [newProductName, setNewProductName] = useState('');
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const [addingPriceFor, setAddingPriceFor] = useState<string | null>(null);
   const [newStore, setNewStore] = useState('');
   const [isAddingNewStore, setIsAddingNewStore] = useState(false);
   const [newStoreInput, setNewStoreInput] = useState('');
   const [newPrice, setNewPrice] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [offerModalRow, setOfferModalRow] = useState<PriceRow | null>(null);
-  const [offerPrice, setOfferPrice] = useState('');
-  const [offerFrom, setOfferFrom] = useState(todayStr());
-  const [offerTo, setOfferTo] = useState(todayStr());
-  const [isSavingOffer, setIsSavingOffer] = useState(false);
+  const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
+  const [editPriceValue, setEditPriceValue] = useState('');
 
-  const fetchStores = useCallback(async () => {
-    const { data } = await supabase.from('distinct_stores').select('store');
-    if (data) setStores(data.map((r) => r.store));
-  }, [supabase]);
-
-  const fetchRows = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     setIsLoading(true);
-    let query = supabase
-      .from('global_standard_prices')
-      .select('*', { count: 'exact' })
-      .order('product_name');
+    const [productsRes, storesRes] = await Promise.all([
+      supabase.from('products').select('id, name').order('name'),
+      supabase.from('distinct_stores').select('store'),
+    ]);
 
-    if (debouncedSearch.trim()) query = query.ilike('product_name', `%${debouncedSearch.trim()}%`);
-    if (storeFilter !== 'all') query = query.eq('store', storeFilter);
-
-    const from = page * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-    query = query.range(from, to);
-
-    const { data, count, error } = await query;
-    if (!error) {
-      setRows(data ?? []);
-      setTotalCount(count ?? 0);
-      setSelectedIds(new Set());
-
-      const ids = (data ?? []).map((r) => r.id);
-      if (ids.length > 0) {
-        const { data: offerData } = await supabase
-          .from('global_offers')
-          .select('id, standard_price_id, offer_price, valid_from, valid_to')
-          .in('standard_price_id', ids)
-          .gte('valid_to', todayStr());
-
-        const map: Record<string, ActiveOffer> = {};
-        (offerData ?? []).forEach((o) => {
-          if (!map[o.standard_price_id] || o.valid_from < map[o.standard_price_id].valid_from) {
-            map[o.standard_price_id] = o;
-          }
-        });
-        setOffersByPriceId(map);
-      } else {
-        setOffersByPriceId({});
-      }
-    } else {
-      showToast('Kunne ikke hente priser.', 'error');
+    if (productsRes.error) {
+      showToast('Kunne ikke hente varer.', 'error');
+      setIsLoading(false);
+      return;
     }
+    if (storesRes.data) setStores(storesRes.data.map((r) => r.store));
+
+    const productIds = (productsRes.data ?? []).map((p) => p.id);
+    const pricesByProduct = new Map<string, StorePrice[]>();
+
+    if (productIds.length > 0) {
+      const [pricesRes, offersRes] = await Promise.all([
+        supabase.from('global_standard_prices').select('id, product_id, store, price').in('product_id', productIds),
+        supabase.from('global_offers').select('standard_price_id, valid_from, valid_to').gte('valid_to', todayStr()),
+      ]);
+
+      const activeOfferPriceIds = new Set(
+        (offersRes.data ?? []).filter((o) => o.valid_from <= todayStr()).map((o) => o.standard_price_id)
+      );
+
+      (pricesRes.data ?? []).forEach((row) => {
+        const arr = pricesByProduct.get(row.product_id) ?? [];
+        arr.push({ id: row.id, store: row.store, price: row.price, hasActiveOffer: activeOfferPriceIds.has(row.id) });
+        pricesByProduct.set(row.product_id, arr);
+      });
+    }
+
+    const merged: ProductRow[] = (productsRes.data ?? []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      prices: (pricesByProduct.get(p.id) ?? []).sort((a, b) => a.store.localeCompare(b.store)),
+    }));
+
+    setProducts(merged);
     setIsLoading(false);
-  }, [supabase, debouncedSearch, storeFilter, page, showToast]);
+  }, [supabase, showToast]);
 
-  useEffect(() => { fetchStores(); }, [fetchStores]);
-  useEffect(() => { fetchRows(); }, [fetchRows]);
-  useEffect(() => { setPage(0); }, [debouncedSearch, storeFilter]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const resetForm = () => {
-    setNewProduct(''); setNewStore(''); setIsAddingNewStore(false);
-    setNewStoreInput(''); setNewPrice(''); setEditingId(null);
+  const filteredProducts = products.filter(
+    (p) => !debouncedSearch.trim() || p.name.toLowerCase().includes(debouncedSearch.trim().toLowerCase())
+  );
+
+  const handleCreateProduct = async () => {
+    const name = newProductName.trim();
+    if (!name) return;
+    const { data, error } = await supabase.from('products').insert({ name }).select('id, name').single();
+    if (error || !data) { showToast('Kunne ikke oprette varen.', 'error'); return; }
+    setProducts((prev) => [...prev, { id: data.id, name: data.name, prices: [] }].sort((a, b) => a.name.localeCompare(b.name)));
+    setNewProductName('');
+    setExpandedId(data.id);
+    showToast('Vare oprettet.');
+    logActivity(supabase, { actorId: adminUser.id, actorName: adminUser.name, action: 'created', entityType: 'price', entityLabel: name });
   };
 
-  const startEdit = (row: PriceRow) => {
-    setEditingId(row.id);
-    setNewProduct(row.product_name);
-    setNewStore(row.store);
-    setIsAddingNewStore(false);
-    setNewStoreInput('');
-    setNewPrice(row.price.toString());
+  const startRename = (product: ProductRow) => {
+    setRenamingId(product.id);
+    setRenameValue(product.name);
+  };
+
+  const saveRename = async (productId: string) => {
+    const name = renameValue.trim();
+    if (!name) return;
+    setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, name } : p)));
+    setRenamingId(null);
+    const { error } = await supabase.from('products').update({ name }).eq('id', productId);
+    if (error) { showToast('Kunne ikke omdøbe varen.', 'error'); fetchAll(); return; }
+    showToast('Vare omdøbt.');
+  };
+
+  const handleDeleteProduct = async (product: ProductRow) => {
+    const ok = await confirm({
+      title: 'Slet vare?',
+      message: `"${product.name}" og alle ${product.prices.length} tilknyttede butikspriser (samt eventuelle tilbud på dem) slettes permanent.`,
+    });
+    if (!ok) return;
+
+    setProducts((prev) => prev.filter((p) => p.id !== product.id));
+    const { error } = await supabase.from('products').delete().eq('id', product.id);
+    if (error) { showToast('Kunne ikke slette varen.', 'error'); fetchAll(); return; }
+    showToast('Vare slettet.');
+    logActivity(supabase, { actorId: adminUser.id, actorName: adminUser.name, action: 'deleted', entityType: 'price', entityLabel: product.name });
+  };
+
+  const openAddPrice = (productId: string) => {
+    setAddingPriceFor(productId);
+    setNewStore(''); setIsAddingNewStore(false); setNewStoreInput(''); setNewPrice('');
   };
 
   const handleStoreSelect = (value: string) => {
@@ -137,154 +157,61 @@ export default function StandardPricesPage() {
   };
 
   const resolvedStore = isAddingNewStore ? newStoreInput.trim() : newStore;
-  const canSave = newProduct.trim().length > 0 && resolvedStore.length > 0 && !isNaN(parseFloat(newPrice)) && parseFloat(newPrice) > 0;
+  const canAddPrice = resolvedStore.length > 0 && !isNaN(parseFloat(newPrice)) && parseFloat(newPrice) > 0;
 
-  const handleSave = async () => {
-    if (!canSave) return;
-    const wasEditing = !!editingId;
-    const productName = newProduct.trim();
+  const handleAddPrice = async (product: ProductRow) => {
+    if (!canAddPrice) return;
     const priceValue = parseFloat(newPrice);
+    const { data, error } = await supabase
+      .from('global_standard_prices')
+      .insert({ product_id: product.id, store: resolvedStore, price: priceValue })
+      .select('id, store, price')
+      .single();
 
-    if (editingId) {
-      // Optimistisk: opdater listen med det samme, rul tilbage hvis Supabase fejler.
-      const previous = rows.find((r) => r.id === editingId);
-      setRows((prev) => prev.map((r) => (r.id === editingId ? { ...r, product_name: productName, store: resolvedStore, price: priceValue } : r)));
-      resetForm();
+    if (error || !data) { showToast('Kunne ikke tilføje prisen.', 'error'); return; }
 
-      const { error } = await supabase.from('global_standard_prices').update({
-        product_name: productName, store: resolvedStore, price: priceValue, updated_at: new Date().toISOString(),
-      }).eq('id', editingId);
-
-      if (error) {
-        if (previous) setRows((prev) => prev.map((r) => (r.id === editingId ? previous : r)));
-        showToast('Kunne ikke gemme ændringen.', 'error');
-        return;
-      }
-    } else {
-      const { error } = await supabase.from('global_standard_prices').insert({
-        product_name: productName, store: resolvedStore, price: priceValue,
-      });
-      if (error) { showToast('Kunne ikke oprette prisen.', 'error'); return; }
-      resetForm();
-      fetchRows();
-    }
-
-    showToast(wasEditing ? 'Pris opdateret.' : 'Pris tilføjet.');
-    logActivity(supabase, {
-      actorId: adminUser.id, actorName: adminUser.name,
-      action: wasEditing ? 'updated' : 'created', entityType: 'price',
-      entityLabel: `${productName} (${resolvedStore})`,
-    });
-    fetchStores();
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === product.id
+          ? { ...p, prices: [...p.prices, { id: data.id, store: data.store, price: data.price, hasActiveOffer: false }].sort((a, b) => a.store.localeCompare(b.store)) }
+          : p
+      )
+    );
+    setAddingPriceFor(null);
+    showToast('Pris tilføjet.');
+    logActivity(supabase, { actorId: adminUser.id, actorName: adminUser.name, action: 'created', entityType: 'price', entityLabel: `${product.name} (${resolvedStore})` });
+    if (!stores.includes(resolvedStore)) setStores((prev) => [...prev, resolvedStore].sort());
   };
 
-  const handleDelete = (row: PriceRow) => {
-    // Fjern med det samme og tilbyd fortryd — sletningen sker først for alvor, når vinduet udløber.
-    setRows((prev) => prev.filter((r) => r.id !== row.id));
+  const startEditPrice = (price: StorePrice) => {
+    setEditingPriceId(price.id);
+    setEditPriceValue(price.price.toString());
+  };
+
+  const saveEditPrice = async (productId: string, priceId: string) => {
+    const value = parseFloat(editPriceValue);
+    if (isNaN(value) || value <= 0) return;
+    setProducts((prev) =>
+      prev.map((p) => (p.id === productId ? { ...p, prices: p.prices.map((pr) => (pr.id === priceId ? { ...pr, price: value } : pr)) } : p))
+    );
+    setEditingPriceId(null);
+    const { error } = await supabase.from('global_standard_prices').update({ price: value, updated_at: new Date().toISOString() }).eq('id', priceId);
+    if (error) { showToast('Kunne ikke opdatere prisen.', 'error'); fetchAll(); return; }
+    showToast('Pris opdateret.');
+  };
+
+  const handleDeletePrice = (product: ProductRow, price: StorePrice) => {
+    setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, prices: p.prices.filter((pr) => pr.id !== price.id) } : p)));
     showUndoToast(
-      `"${row.product_name}" slettet.`,
+      `Pris for "${product.name}" i ${price.store} slettet.`,
       async () => {
-        const { error } = await supabase.from('global_standard_prices').delete().eq('id', row.id);
-        if (error) { showToast('Kunne ikke slette prisen.', 'error'); fetchRows(); return; }
-        logActivity(supabase, {
-          actorId: adminUser.id, actorName: adminUser.name,
-          action: 'deleted', entityType: 'price',
-          entityLabel: `${row.product_name} (${row.store})`,
-        });
+        const { error } = await supabase.from('global_standard_prices').delete().eq('id', price.id);
+        if (error) { showToast('Kunne ikke slette prisen.', 'error'); fetchAll(); return; }
+        logActivity(supabase, { actorId: adminUser.id, actorName: adminUser.name, action: 'deleted', entityType: 'price', entityLabel: `${product.name} (${price.store})` });
       },
-      () => setRows((prev) => [...prev, row].sort((a, b) => a.product_name.localeCompare(b.product_name)))
+      () => fetchAll()
     );
   };
-
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    setSelectedIds((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))));
-  };
-
-  const handleBulkDelete = () => {
-    const toDelete = rows.filter((r) => selectedIds.has(r.id));
-    if (toDelete.length === 0) return;
-    setRows((prev) => prev.filter((r) => !selectedIds.has(r.id)));
-    setSelectedIds(new Set());
-    showUndoToast(
-      `${toDelete.length} ${toDelete.length === 1 ? 'pris' : 'priser'} slettet.`,
-      async () => {
-        const { error } = await supabase.from('global_standard_prices').delete().in('id', toDelete.map((r) => r.id));
-        if (error) { showToast('Kunne ikke slette de valgte priser.', 'error'); fetchRows(); return; }
-        logActivity(supabase, {
-          actorId: adminUser.id, actorName: adminUser.name,
-          action: 'deleted', entityType: 'price',
-          entityLabel: `${toDelete.length} priser (bulk)`,
-        });
-      },
-      () => setRows((prev) => [...prev, ...toDelete].sort((a, b) => a.product_name.localeCompare(b.product_name)))
-    );
-  };
-
-  const openOfferModal = (row: PriceRow) => {
-    const existing = offersByPriceId[row.id];
-    setOfferModalRow(row);
-    setOfferPrice(existing ? existing.offer_price.toString() : '');
-    setOfferFrom(existing ? existing.valid_from : todayStr());
-    setOfferTo(existing ? existing.valid_to : todayStr());
-  };
-
-  const closeOfferModal = () => {
-    setOfferModalRow(null); setOfferPrice(''); setOfferFrom(todayStr()); setOfferTo(todayStr());
-  };
-
-  const canSaveOffer = !isNaN(parseFloat(offerPrice)) && parseFloat(offerPrice) > 0 && offerFrom.length > 0 && offerTo.length > 0 && offerTo >= offerFrom;
-
-  const handleSaveOffer = async () => {
-    if (!offerModalRow || !canSaveOffer) return;
-    setIsSavingOffer(true);
-    const existing = offersByPriceId[offerModalRow.id];
-    let error;
-    if (existing) {
-      ({ error } = await supabase.from('global_offers').update({
-        offer_price: parseFloat(offerPrice), valid_from: offerFrom, valid_to: offerTo,
-      }).eq('id', existing.id));
-    } else {
-      ({ error } = await supabase.from('global_offers').insert({
-        standard_price_id: offerModalRow.id, offer_price: parseFloat(offerPrice), valid_from: offerFrom, valid_to: offerTo,
-      }));
-    }
-    setIsSavingOffer(false);
-    if (error) { showToast('Kunne ikke gemme tilbuddet.', 'error'); return; }
-    showToast('Tilbud gemt.');
-    logActivity(supabase, {
-      actorId: adminUser.id, actorName: adminUser.name,
-      action: existing ? 'updated' : 'created', entityType: 'offer',
-      entityLabel: `${offerModalRow.product_name} (${offerModalRow.store})`,
-    });
-    closeOfferModal(); fetchRows();
-  };
-
-  const handleRemoveOffer = async () => {
-    if (!offerModalRow) return;
-    const existing = offersByPriceId[offerModalRow.id];
-    if (!existing) return;
-    const ok = await confirm({ title: 'Fjern tilbud?', message: 'Dette kan ikke fortrydes.' });
-    if (!ok) return;
-    const { error } = await supabase.from('global_offers').delete().eq('id', existing.id);
-    if (error) { showToast('Kunne ikke fjerne tilbuddet.', 'error'); return; }
-    showToast('Tilbud fjernet.');
-    logActivity(supabase, {
-      actorId: adminUser.id, actorName: adminUser.name,
-      action: 'deleted', entityType: 'offer',
-      entityLabel: `${offerModalRow.product_name} (${offerModalRow.store})`,
-    });
-    closeOfferModal(); fetchRows();
-  };
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
     <div>
@@ -294,229 +221,169 @@ export default function StandardPricesPage() {
             <Tag className="h-5 w-5 text-white" strokeWidth={2.2} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Standardpriser</h1>
-            <p className="text-sm text-stone-500 dark:text-stone-400">{totalCount} priser i alt</p>
+            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Varer &amp; priser</h1>
+            <p className="text-sm text-stone-500 dark:text-stone-400">{products.length} varer i alt</p>
           </div>
         </div>
-        <PriceCsvImport onImported={fetchRows} />
-      </div>
-
-      <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Produkt</label>
-            <input value={newProduct} onChange={(e) => setNewProduct(e.target.value)}
-              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-rose-900/30"
-              placeholder="Fx Mælk 1L" />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Butik</label>
-            {!isAddingNewStore ? (
-              <select value={newStore} onChange={(e) => handleStoreSelect(e.target.value)}
-                className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-rose-900/30">
-                <option value="" disabled>Vælg butik...</option>
-                {stores.map((s) => <option key={s} value={s}>{s}</option>)}
-                <option value={NEW_STORE_VALUE}>+ Ny butik...</option>
-              </select>
-            ) : (
-              <div className="flex items-center gap-2">
-                <input value={newStoreInput} onChange={(e) => setNewStoreInput(e.target.value)}
-                  className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-rose-900/30"
-                  placeholder="Ny butiks navn" autoFocus />
-                <button type="button" onClick={() => { setIsAddingNewStore(false); setNewStoreInput(''); }}
-                  className="text-xs font-medium text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300">Fortryd</button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Pris (kr.)</label>
-            <input type="number" step="0.01" value={newPrice} onChange={(e) => setNewPrice(e.target.value)}
-              className="w-28 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-rose-900/30"
-              placeholder="0.00" />
-          </div>
-
-          <button onClick={handleSave} disabled={!canSave}
-            className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-30 dark:bg-rose-600 dark:hover:bg-rose-500">
-            <Plus size={15} />
-            {editingId ? 'Gem ændring' : 'Tilføj pris'}
-          </button>
-          {editingId && (
-            <button onClick={resetForm} className="text-sm font-medium text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300">Annullér</button>
-          )}
-        </div>
+        <PriceCsvImport onImported={fetchAll} />
       </div>
 
       <div className="mt-6 flex gap-3">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Søg produktnavn..."
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Søg varenavn..."
             className="w-full rounded-xl border border-stone-200 bg-white py-2 pl-10 pr-3 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:focus:ring-rose-900/30" />
         </div>
-        <select value={storeFilter} onChange={(e) => setStoreFilter(e.target.value)}
-          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:focus:ring-rose-900/30">
-          <option value="all">Alle butikker</option>
-          {stores.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
+        <input
+          value={newProductName}
+          onChange={(e) => setNewProductName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleCreateProduct()}
+          placeholder="Ny vare, fx Mælk 1L"
+          className="w-56 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
+        />
+        <button onClick={handleCreateProduct} disabled={!newProductName.trim()}
+          className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-30 dark:bg-rose-600 dark:hover:bg-rose-500">
+          <Plus size={15} /> Opret
+        </button>
       </div>
 
-      {selectedIds.size > 0 && (
-        <div className="mt-4 flex items-center justify-between rounded-xl bg-stone-900 px-4 py-2.5 text-sm text-white dark:bg-stone-800">
-          <span>{selectedIds.size} valgt</span>
-          <div className="flex items-center gap-3">
-            <button onClick={() => setSelectedIds(new Set())} className="text-stone-300 hover:text-white">Ryd valg</button>
-            <button onClick={handleBulkDelete} className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 font-semibold hover:bg-red-700">
-              <Trash2 size={13} /> Slet valgte
-            </button>
+      <div className="mt-4 flex flex-col gap-2">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-stone-100 dark:bg-stone-800" />)
+        ) : filteredProducts.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center dark:border-stone-800 dark:bg-stone-900">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 dark:bg-stone-800">
+              <Tag className="h-5 w-5 text-stone-400" />
+            </div>
+            <p className="mt-3 text-sm font-medium text-stone-500 dark:text-stone-400">Ingen varer fundet</p>
           </div>
-        </div>
-      )}
+        ) : (
+          filteredProducts.map((product) => {
+            const isExpanded = expandedId === product.id;
+            const priceRange = product.prices.length > 0
+              ? product.prices.length === 1
+                ? `${product.prices[0].price.toFixed(2)} kr.`
+                : `${Math.min(...product.prices.map((p) => p.price)).toFixed(2)}–${Math.max(...product.prices.map((p) => p.price)).toFixed(2)} kr.`
+              : 'Ingen priser endnu';
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
-        <table className="w-full text-sm">
-          <thead className="border-b border-stone-100 bg-stone-50/50 text-left text-xs font-semibold text-stone-500 dark:border-stone-800 dark:bg-stone-800/50 dark:text-stone-400">
-            <tr>
-              <th className="w-10 px-5 py-3">
-                <button onClick={toggleSelectAll} className="flex text-stone-400 hover:text-stone-600 dark:hover:text-stone-200">
-                  {rows.length > 0 && selectedIds.size === rows.length ? <CheckSquare size={16} /> : <Square size={16} />}
+            return (
+              <div key={product.id} className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
+                <button
+                  onClick={() => setExpandedId(isExpanded ? null : product.id)}
+                  className="flex w-full items-center gap-3 px-5 py-4 text-left"
+                >
+                  <ChevronDown size={16} className={`shrink-0 text-stone-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                  {renamingId === product.id ? (
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.key === 'Enter' && saveRename(product.id)}
+                      className="flex-1 rounded-lg border border-stone-200 px-2 py-1 text-sm font-medium outline-none focus:border-rose-400 dark:border-stone-700 dark:bg-stone-800"
+                    />
+                  ) : (
+                    <span className="flex-1 font-medium text-stone-900 dark:text-stone-100">{product.name}</span>
+                  )}
+                  <span className="text-xs text-stone-400 dark:text-stone-500">{product.prices.length} {product.prices.length === 1 ? 'butik' : 'butikker'} · {priceRange}</span>
                 </button>
-              </th>
-              <th className="px-5 py-3">Produkt</th>
-              <th className="px-5 py-3">Butik</th>
-              <th className="px-5 py-3">Pris</th>
-              <th className="px-5 py-3">Tilbud</th>
-              <th className="px-5 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
-            {isLoading ? (
-              <SkeletonRows columns={6} />
-            ) : rows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-5 py-12 text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 dark:bg-stone-800">
-                    <Tag className="h-5 w-5 text-stone-400" />
-                  </div>
-                  <p className="mt-3 text-sm font-medium text-stone-500 dark:text-stone-400">Ingen priser fundet</p>
-                  <p className="text-xs text-stone-400 dark:text-stone-500">Prøv en anden søgning, eller tilføj en ny pris ovenfor.</p>
-                </td>
-              </tr>
-            ) : (
-              rows.map((row) => {
-                const offer = offersByPriceId[row.id];
-                const isOfferActive = offer && offer.valid_from <= todayStr() && offer.valid_to >= todayStr();
-                return (
-                  <tr key={row.id} className="transition hover:bg-stone-50/50 dark:hover:bg-stone-800/50">
-                    <td className="px-5 py-3.5">
-                      <button onClick={() => toggleSelect(row.id)} className="flex text-stone-400 hover:text-stone-600 dark:hover:text-stone-200">
-                        {selectedIds.has(row.id) ? <CheckSquare size={16} className="text-rose-600 dark:text-rose-400" /> : <Square size={16} />}
-                      </button>
-                    </td>
-                    <td className="px-5 py-3.5 font-medium text-stone-900 dark:text-stone-100">{row.product_name}</td>
-                    <td className="px-5 py-3.5 text-stone-600 dark:text-stone-400">{row.store}</td>
-                    <td className="px-5 py-3.5 text-stone-600 dark:text-stone-400">{row.price.toFixed(2)} kr.</td>
-                    <td className="px-5 py-3.5">
-                      {offer ? (
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          isOfferActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
-                        }`}>
-                          {offer.offer_price.toFixed(2)} kr. · {isOfferActive ? 'Aktiv' : 'Kommende'}
-                        </span>
+
+                {isExpanded && (
+                  <div className="border-t border-stone-100 bg-stone-50/50 px-5 py-4 dark:border-stone-800 dark:bg-stone-800/30">
+                    <div className="flex items-center justify-end gap-2">
+                      {renamingId === product.id ? (
+                        <>
+                          <button onClick={() => saveRename(product.id)} className="flex items-center gap-1 rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white dark:bg-rose-600">
+                            <Check size={12} /> Gem navn
+                          </button>
+                          <button onClick={() => setRenamingId(null)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700">
+                            <X size={14} />
+                          </button>
+                        </>
                       ) : (
-                        <span className="text-xs text-stone-400 dark:text-stone-500">Intet tilbud</span>
+                        <button onClick={() => startRename(product)} className="flex items-center gap-1 text-xs font-semibold text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">
+                          <Pencil size={12} /> Omdøb
+                        </button>
                       )}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => openOfferModal(row)} title={offer ? 'Redigér tilbud' : 'Sæt tilbud'}
-                          className="rounded-lg p-1.5 text-emerald-600 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">
-                          <Percent size={15} />
+                      <button onClick={() => handleDeleteProduct(product)} className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline dark:text-red-400">
+                        <Trash2 size={12} /> Slet vare
+                      </button>
+                    </div>
+
+                    <div className="mt-3 flex flex-col divide-y divide-stone-200 dark:divide-stone-700">
+                      {product.prices.map((price) => (
+                        <div key={price.id} className="flex items-center justify-between gap-3 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-stone-800 dark:text-stone-200">{price.store}</span>
+                            {price.hasActiveOffer && (
+                              <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+                                <Percent size={9} /> Tilbud aktivt
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {editingPriceId === price.id ? (
+                              <>
+                                <input
+                                  autoFocus
+                                  type="number" step="0.01"
+                                  value={editPriceValue}
+                                  onChange={(e) => setEditPriceValue(e.target.value)}
+                                  onKeyDown={(e) => e.key === 'Enter' && saveEditPrice(product.id, price.id)}
+                                  className="w-24 rounded-lg border border-stone-200 px-2 py-1 text-sm outline-none focus:border-rose-400 dark:border-stone-700 dark:bg-stone-800"
+                                />
+                                <button onClick={() => saveEditPrice(product.id, price.id)} className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10">
+                                  <Check size={14} />
+                                </button>
+                              </>
+                            ) : (
+                              <button onClick={() => startEditPrice(price)} className="text-sm font-semibold text-stone-900 hover:underline dark:text-stone-100">
+                                {price.price.toFixed(2)} kr.
+                              </button>
+                            )}
+                            <button onClick={() => handleDeletePrice(product, price)} className="rounded-lg p-1.5 text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10">
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {addingPriceFor === product.id ? (
+                      <div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl bg-white p-3 dark:bg-stone-900">
+                        {!isAddingNewStore ? (
+                          <select value={newStore} onChange={(e) => handleStoreSelect(e.target.value)}
+                            className="rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-sm outline-none dark:border-stone-700 dark:bg-stone-800">
+                            <option value="" disabled>Vælg butik...</option>
+                            {stores.map((s) => <option key={s} value={s}>{s}</option>)}
+                            <option value={NEW_STORE_VALUE}>+ Ny butik...</option>
+                          </select>
+                        ) : (
+                          <input value={newStoreInput} onChange={(e) => setNewStoreInput(e.target.value)} placeholder="Ny butiks navn"
+                            className="rounded-lg border border-stone-200 px-2.5 py-1.5 text-sm outline-none dark:border-stone-700 dark:bg-stone-800" />
+                        )}
+                        <input type="number" step="0.01" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="Pris"
+                          className="w-24 rounded-lg border border-stone-200 px-2.5 py-1.5 text-sm outline-none dark:border-stone-700 dark:bg-stone-800" />
+                        <button onClick={() => handleAddPrice(product)} disabled={!canAddPrice}
+                          className="rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-30 dark:bg-rose-600">
+                          Gem
                         </button>
-                        <button onClick={() => startEdit(row)} title="Redigér"
-                          className="rounded-lg p-1.5 text-stone-500 transition hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800">
-                          <Pencil size={15} />
-                        </button>
-                        <button onClick={() => handleDelete(row)} title="Slet"
-                          className="rounded-lg p-1.5 text-red-500 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10">
-                          <Trash2 size={15} />
+                        <button onClick={() => setAddingPriceFor(null)} className="text-xs font-medium text-stone-400 hover:text-stone-600">
+                          Annullér
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-3 text-sm">
-          <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
-            className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-30 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800">
-            <ChevronLeft size={14} /> Forrige
-          </button>
-          <span className="text-stone-500 dark:text-stone-400">Side {page + 1} af {totalPages}</span>
-          <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-            className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-30 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800">
-            Næste <ChevronRight size={14} />
-          </button>
-        </div>
-      )}
-
-      {offerModalRow && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/40 backdrop-blur-sm" onClick={closeOfferModal}>
-         <div className="flex min-h-full items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-stone-900" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-500/15">
-                <Percent size={16} className="text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <h2 className="text-lg font-bold text-stone-900 dark:text-stone-100">Sæt tilbud</h2>
-            </div>
-            <p className="mt-3 text-sm text-stone-600 dark:text-stone-400">{offerModalRow.product_name} · {offerModalRow.store}</p>
-            <p className="text-xs text-stone-400 dark:text-stone-500">Normalpris: {offerModalRow.price.toFixed(2)} kr.</p>
-
-            <div className="mt-4 flex flex-col gap-3">
-              <div>
-                <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Tilbudspris (kr.)</label>
-                <input type="number" step="0.01" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-emerald-900/30"
-                  placeholder="0.00" autoFocus />
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Gyldig fra</label>
-                  <input type="date" value={offerFrom} onChange={(e) => setOfferFrom(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-emerald-900/30" />
-                </div>
-                <div className="flex-1">
-                  <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Gyldig til</label>
-                  <input type="date" value={offerTo} onChange={(e) => setOfferTo(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-emerald-900/30" />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex items-center justify-between">
-              <div>
-                {offersByPriceId[offerModalRow.id] && (
-                  <button onClick={handleRemoveOffer} className="text-sm font-medium text-red-600 hover:underline dark:text-red-400">Fjern tilbud</button>
+                    ) : (
+                      <button onClick={() => openAddPrice(product.id)} className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:underline dark:text-rose-400">
+                        <Plus size={13} /> Tilføj pris i butik
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-              <div className="flex gap-2">
-                <button onClick={closeOfferModal} className="rounded-xl border border-stone-200 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800">Annullér</button>
-                <button onClick={handleSaveOffer} disabled={!canSaveOffer || isSavingOffer}
-                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-40">
-                  {isSavingOffer ? 'Gemmer...' : 'Gem tilbud'}
-                </button>
-              </div>
-            </div>
-          </div>
-         </div>
-        </div>
-      )}
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

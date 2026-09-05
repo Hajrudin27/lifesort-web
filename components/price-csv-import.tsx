@@ -78,14 +78,47 @@ export function PriceCsvImport({ onImported }: { onImported: () => void }) {
     if (validRows.length === 0) return;
     setIsImporting(true);
 
-    const { error } = await supabase.from('global_standard_prices').insert(validRows);
+    // Find eller opret ét produkt pr. unikt (normaliseret) varenavn i denne fil,
+    // så to stavevarianter i samme CSV ikke laver to separate varer.
+    const uniqueNames = Array.from(new Map(validRows.map((r) => [r.product_name.trim().toLowerCase(), r.product_name.trim()])).values());
+
+    const { data: existingProducts, error: fetchError } = await supabase.from('products').select('id, name');
+    if (fetchError) {
+      setIsImporting(false);
+      showToast('Kunne ikke slå eksisterende varer op.', 'error');
+      return;
+    }
+
+    const nameToId = new Map<string, string>((existingProducts ?? []).map((p) => [p.name.trim().toLowerCase(), p.id]));
+
+    const namesToCreate = uniqueNames.filter((name) => !nameToId.has(name.trim().toLowerCase()));
+    if (namesToCreate.length > 0) {
+      const { data: created, error: createError } = await supabase
+        .from('products')
+        .insert(namesToCreate.map((name) => ({ name })))
+        .select('id, name');
+      if (createError) {
+        setIsImporting(false);
+        showToast('Kunne ikke oprette nye varer.', 'error');
+        return;
+      }
+      (created ?? []).forEach((p) => nameToId.set(p.name.trim().toLowerCase(), p.id));
+    }
+
+    const priceRows = validRows.map((r) => ({
+      product_id: nameToId.get(r.product_name.trim().toLowerCase())!,
+      store: r.store,
+      price: r.price,
+    }));
+
+    const { error } = await supabase.from('global_standard_prices').insert(priceRows);
 
     setIsImporting(false);
     if (error) {
       showToast('Kunne ikke importere priserne.', 'error');
       return;
     }
-    showToast(`${validRows.length} priser importeret.`);
+    showToast(`${validRows.length} priser importeret (${namesToCreate.length} nye varer oprettet).`);
     logActivity(supabase, {
       actorId: adminUser.id, actorName: adminUser.name,
       action: 'created', entityType: 'price',

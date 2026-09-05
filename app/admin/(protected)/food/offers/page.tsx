@@ -16,7 +16,7 @@ type OfferRow = {
   valid_to: string;
   standard_price: {
     id: string;
-    product_name: string;
+    product: { name: string } | null;
     store: string;
     price: number;
   } | null;
@@ -52,8 +52,8 @@ export default function OffersOverviewPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchStores = useCallback(async () => {
-    const { data } = await supabase.from('global_standard_prices').select('store').order('store');
-    if (data) setStores(Array.from(new Set(data.map((r) => r.store))));
+    const { data } = await supabase.from('distinct_stores').select('store');
+    if (data) setStores(data.map((r) => r.store));
   }, [supabase]);
 
   const fetchRows = useCallback(async () => {
@@ -61,7 +61,7 @@ export default function OffersOverviewPage() {
 
     let query = supabase
       .from('global_offers')
-      .select('id, offer_price, valid_from, valid_to, standard_price:global_standard_prices(id, product_name, store, price)', { count: 'exact' })
+      .select('id, offer_price, valid_from, valid_to, standard_price:global_standard_prices(id, store, price, product:products(name))', { count: 'exact' })
       .order('valid_from', { ascending: false });
 
     const today = todayStr();
@@ -79,7 +79,7 @@ export default function OffersOverviewPage() {
       if (storeFilter !== 'all') filtered = filtered.filter((r) => r.standard_price?.store === storeFilter);
       if (debouncedSearch.trim()) {
         const q = debouncedSearch.trim().toLowerCase();
-        filtered = filtered.filter((r) => r.standard_price?.product_name.toLowerCase().includes(q));
+        filtered = filtered.filter((r) => r.standard_price?.product?.name.toLowerCase().includes(q));
       }
       setRows(filtered);
       setTotalCount(count ?? 0);
@@ -96,7 +96,7 @@ export default function OffersOverviewPage() {
   const handleDelete = (row: OfferRow) => {
     setRows((prev) => prev.filter((r) => r.id !== row.id));
     showUndoToast(
-      `Tilbud på "${row.standard_price?.product_name ?? 'ukendt'}" fjernet.`,
+      `Tilbud på "${row.standard_price?.product?.name ?? 'ukendt'}" fjernet.`,
       async () => {
         const { error } = await supabase.from('global_offers').delete().eq('id', row.id);
         if (error) { showToast('Kunne ikke fjerne tilbuddet.', 'error'); fetchRows(); return; }
@@ -104,7 +104,7 @@ export default function OffersOverviewPage() {
           logActivity(supabase, {
             actorId: adminUser.id, actorName: adminUser.name,
             action: 'deleted', entityType: 'offer',
-            entityLabel: `${row.standard_price.product_name} (${row.standard_price.store})`,
+            entityLabel: `${row.standard_price.product?.name} (${row.standard_price.store})`,
           });
         }
       },
@@ -182,7 +182,7 @@ export default function OffersOverviewPage() {
                 const savingsPercent = Math.round((1 - row.offer_price / row.standard_price.price) * 100);
                 return (
                   <tr key={row.id} className="transition hover:bg-stone-50/50 dark:hover:bg-stone-800/50">
-                    <td className="px-5 py-3.5 font-medium text-stone-900 dark:text-stone-100">{row.standard_price.product_name}</td>
+                    <td className="px-5 py-3.5 font-medium text-stone-900 dark:text-stone-100">{row.standard_price.product?.name}</td>
                     <td className="px-5 py-3.5 text-stone-600 dark:text-stone-400">{row.standard_price.store}</td>
                     <td className="px-5 py-3.5 text-stone-400 line-through dark:text-stone-500">{row.standard_price.price.toFixed(2)} kr.</td>
                     <td className="px-5 py-3.5 font-semibold text-stone-900 dark:text-stone-100">

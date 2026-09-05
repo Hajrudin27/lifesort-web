@@ -30,8 +30,8 @@ export default function MealPlanPreviewPage() {
     const [storesRes, recipesRes, offersRes, pricesRes] = await Promise.all([
       supabase.from('distinct_stores').select('store'),
       supabase.from('global_recipes').select('id, name, meal_type, ingredients').eq('published', true),
-      supabase.from('global_offers').select('id, offer_price, valid_from, valid_to, standard_price:global_standard_prices(product_name, store)'),
-      supabase.from('global_standard_prices').select('id, product_name, store, price'),
+      supabase.from('global_offers').select('id, offer_price, valid_from, valid_to, standard_price:global_standard_prices(store, product:products(name))'),
+      supabase.from('global_standard_prices').select('id, store, price, product:products(name)'),
     ]);
 
     if (storesRes.error || recipesRes.error || offersRes.error || pricesRes.error) {
@@ -52,10 +52,16 @@ export default function MealPlanPreviewPage() {
         ingredients: r.ingredients,
       }))
     );
+    const priceRows = (pricesRes.data as unknown as Array<{
+      id: string;
+      store: string;
+      price: number;
+      product: { name: string } | null;
+    }>) ?? [];
     setPrices(
-      (pricesRes.data ?? []).map((p) => ({
+      priceRows.map((p) => ({
         id: p.id,
-        productName: p.product_name,
+        productName: p.product?.name ?? '',
         store: p.store,
         price: p.price,
       }))
@@ -65,14 +71,14 @@ export default function MealPlanPreviewPage() {
       offer_price: number;
       valid_from: string;
       valid_to: string;
-      standard_price: { product_name: string; store: string } | null;
+      standard_price: { store: string; product: { name: string } | null } | null;
     }>) ?? [];
     setOffers(
       offerRows
         .filter((o) => o.standard_price)
         .map((o) => ({
           id: o.id,
-          productName: o.standard_price!.product_name,
+          productName: o.standard_price!.product?.name ?? '',
           store: o.standard_price!.store,
           offerPrice: o.offer_price,
           validFrom: o.valid_from,
