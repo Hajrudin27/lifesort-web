@@ -4,6 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserPlus } from 'lucide-react';
 import { useToast } from '@/components/toast-provider';
+import { ADMIN_ROLES } from '@/lib/admin-roles';
+
+const ROLE_LABEL: Record<string, string> = {
+  owner: 'Ejer — fuld adgang, kan invitere admins',
+  editor: 'Redaktør — kan redigere indhold',
+  support: 'Support — supportsager',
+};
 
 export function InviteAdminForm() {
   const router = useRouter();
@@ -11,7 +18,7 @@ export function InviteAdminForm() {
 
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('owner');
+  const [role, setRole] = useState('editor');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canSubmit = email.trim().length > 0 && fullName.trim().length > 0;
@@ -25,7 +32,7 @@ export function InviteAdminForm() {
       const res = await fetch('/api/invite-admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), fullName: fullName.trim(), role: role.trim() }),
+        body: JSON.stringify({ email: email.trim(), fullName: fullName.trim(), role }),
       });
       const body = await res.json().catch(() => ({}));
 
@@ -60,9 +67,12 @@ export function InviteAdminForm() {
       </div>
       <div className="flex flex-col gap-1">
         <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Rolle</label>
-        <input value={role} onChange={(e) => setRole(e.target.value)}
-          className="w-28 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-stone-400 focus:ring-4 focus:ring-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-stone-700/30"
-          placeholder="owner" />
+        <select value={role} onChange={(e) => setRole(e.target.value)}
+          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-stone-400 focus:ring-4 focus:ring-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-stone-700/30">
+          {ADMIN_ROLES.map((r) => (
+            <option key={r} value={r}>{ROLE_LABEL[r] ?? r}</option>
+          ))}
+        </select>
       </div>
       <button type="submit" disabled={!canSubmit || isSubmitting}
         className="flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-40 dark:bg-stone-700 dark:hover:bg-stone-600">

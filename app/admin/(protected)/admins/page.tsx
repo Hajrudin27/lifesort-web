@@ -1,5 +1,6 @@
 import { ShieldCheck } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAdmin } from '@/lib/admin-auth';
 import { InviteAdminForm } from '@/components/invite-admin-form';
 
 export const metadata = {
@@ -11,6 +12,11 @@ function initials(name: string) {
 }
 
 export default async function AdminsPage() {
+  // Kun ejere må invitere. Serveren håndhæver det i /api/invite-admin — her skjuler vi
+  // blot formularen, så UI'et ikke tilbyder noget der alligevel bliver afvist.
+  const auth = await requireAdmin();
+  const canInvite = auth.ok && auth.admin.role === 'owner';
+
   const supabase = createAdminClient();
 
   const [{ data: adminRows }, { data: authData }] = await Promise.all([
@@ -32,7 +38,13 @@ export default async function AdminsPage() {
         </div>
       </div>
 
-      <InviteAdminForm />
+      {canInvite ? (
+        <InviteAdminForm />
+      ) : (
+        <p className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 text-sm text-stone-500 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400">
+          Kun ejere kan invitere nye admins.
+        </p>
+      )}
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
         <table className="w-full text-sm">
