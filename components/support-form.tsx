@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Bug,
   CheckCircle2,
@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 
 type SupportCategory = 'general' | 'bug' | 'billing' | 'feature' | 'account';
+
+const CATEGORY_VALUES: SupportCategory[] = ['general', 'bug', 'billing', 'feature', 'account'];
 
 const CATEGORY_OPTIONS: {
   value: SupportCategory;
@@ -60,6 +62,10 @@ const CATEGORY_OPTIONS: {
   },
 ];
 
+function isSupportCategory(value: string | null): value is SupportCategory {
+  return CATEGORY_VALUES.includes(value as SupportCategory);
+}
+
 function defaultPriority(category: SupportCategory, isUrgent: boolean) {
   if (isUrgent) return 'urgent';
   if (category === 'bug' || category === 'billing') return 'high';
@@ -80,6 +86,13 @@ export function SupportForm() {
 
   const selectedCategory = CATEGORY_OPTIONS.find((option) => option.value === category) ?? CATEGORY_OPTIONS[0];
   const canSubmit = name.trim().length > 0 && email.trim().length > 0 && subject.trim().length > 0 && message.trim().length > 0;
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      const requestedCategory = new URLSearchParams(window.location.search).get('category');
+      if (isSupportCategory(requestedCategory)) setCategory(requestedCategory);
+    });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
