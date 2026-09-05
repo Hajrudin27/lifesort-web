@@ -3,6 +3,7 @@ import { HelpCircle, MessageCircle } from 'lucide-react';
 import { PublicHeader } from '@/components/public-header';
 import { PublicFooter } from '@/components/public-footer';
 import { FaqAccordion } from '@/components/faq-accordion';
+import { BackToTop } from '@/components/back-to-top';
 import { ScrollReveal } from '@/components/scroll-reveal';
 
 export const metadata = {
@@ -52,8 +53,9 @@ export default function FaqPage() {
               Kontakt support
             </Link>
           </ScrollReveal>
-        </div>
+          </div>
       </main>
+      <BackToTop />
       <PublicFooter />
     </>
   );

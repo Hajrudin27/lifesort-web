@@ -5,6 +5,7 @@ import { PublicHeader } from '@/components/public-header';
 import { PublicFooter } from '@/components/public-footer';
 import { WaitlistCta } from '@/components/waitlist-cta';
 import { modules, getModule } from '@/lib/modules-content';
+import { siteUrl } from '@/lib/site-config';
 
 export function generateStaticParams() {
   return modules.map((m) => ({ slug: m.slug }));
@@ -28,8 +29,21 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
   const Icon = mod.icon;
   const otherModules = modules.filter((m) => m.slug !== mod.slug).slice(0, 3);
 
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'LifeSort', item: siteUrl },
+      { '@type': 'ListItem', position: 2, name: mod.title, item: `${siteUrl}/modules/${mod.slug}` },
+    ],
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <PublicHeader />
       <main id="main-content" className="flex-1">
         <section className="bg-[#FBF7F1]">
