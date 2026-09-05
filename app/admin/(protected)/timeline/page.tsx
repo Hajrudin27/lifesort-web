@@ -20,7 +20,7 @@ type TimelineRow = {
   description: string | null;
   event_date: string; // YYYY-MM-DD
   status: Status;
-  owner: Owner;
+  owners: Owner[];
   created_at: string;
 };
 
@@ -64,7 +64,19 @@ function monthLabel(dateStr: string) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-function OwnerBadge({ owner }: { owner: Owner }) {
+function OwnerBadge({ owners }: { owners: Owner[] }) {
+  if (owners.length >= 2) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-white py-0.5 pl-0.5 pr-2 text-[11px] font-semibold text-stone-700 ring-1 ring-stone-200 dark:bg-stone-900 dark:text-stone-300 dark:ring-stone-700">
+        <span className="flex -space-x-1.5">
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-sky-500 text-[9px] font-bold text-white ring-1 ring-white dark:ring-stone-900">H</span>
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-violet-500 text-[9px] font-bold text-white ring-1 ring-white dark:ring-stone-900">W</span>
+        </span>
+        Begge
+      </span>
+    );
+  }
+  const owner = owners[0];
   const c = OWNER_COLOR[owner];
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2 text-[11px] font-semibold ${c.text} bg-white ring-1 dark:bg-stone-900 ${c.ring}`}>
@@ -94,7 +106,7 @@ export default function TimelinePage() {
   const [formDescription, setFormDescription] = useState('');
   const [formDate, setFormDate] = useState(todayStr());
   const [formStatus, setFormStatus] = useState<Status>('upcoming');
-  const [formOwner, setFormOwner] = useState<Owner>('hajrudin');
+  const [formOwners, setFormOwners] = useState<Owner[]>(['hajrudin']);
   const [isSaving, setIsSaving] = useState(false);
 
   const [detailRow, setDetailRow] = useState<TimelineRow | null>(null);
@@ -117,7 +129,7 @@ export default function TimelinePage() {
   useEffect(() => { fetchRows(); }, [fetchRows]);
 
   const ownerFilteredRows = useMemo(
-    () => (ownerFilter === 'all' ? rows : rows.filter((r) => r.owner === ownerFilter)),
+    () => (ownerFilter === 'all' ? rows : rows.filter((r) => r.owners.includes(ownerFilter))),
     [rows, ownerFilter]
   );
 
@@ -165,7 +177,7 @@ export default function TimelinePage() {
     setFormDescription('');
     setFormDate(todayStr());
     setFormStatus('upcoming');
-    setFormOwner('hajrudin');
+    setFormOwners(['hajrudin']);
   };
 
   const openCreateForm = () => {
@@ -179,7 +191,7 @@ export default function TimelinePage() {
     setFormDescription(row.description ?? '');
     setFormDate(row.event_date);
     setFormStatus(row.status);
-    setFormOwner(row.owner);
+    setFormOwners(row.owners);
     setDetailRow(null);
     setIsFormOpen(true);
   };
@@ -189,7 +201,7 @@ export default function TimelinePage() {
     resetForm();
   };
 
-  const canSave = formTitle.trim().length > 0 && formDate.length > 0;
+  const canSave = formTitle.trim().length > 0 && formDate.length > 0 && formOwners.length > 0;
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -200,7 +212,7 @@ export default function TimelinePage() {
       description: formDescription.trim() || null,
       event_date: formDate,
       status: formStatus,
-      owner: formOwner,
+      owners: formOwners,
     };
 
     if (editingId) {
@@ -390,7 +402,7 @@ export default function TimelinePage() {
                               <StatusIcon size={11} />
                               {meta.label}
                             </span>
-                            <OwnerBadge owner={row.owner} />
+                            <OwnerBadge owners={row.owners} />
                           </div>
                           <h3 className="mt-2 font-semibold text-stone-900 dark:text-stone-100">{row.title}</h3>
                           {row.description && (
@@ -447,7 +459,7 @@ export default function TimelinePage() {
                           </p>
                           <p className="text-xs text-stone-400 dark:text-stone-500">{formatDate(row.event_date)}</p>
                         </button>
-                        <OwnerBadge owner={row.owner} />
+                        <OwnerBadge owners={row.owners} />
                         <button
                           onClick={() => handleReopen(row)}
                           title="Genåbn"
@@ -480,7 +492,7 @@ export default function TimelinePage() {
                     <StatusIcon size={11} />
                     {meta.label}
                   </span>
-                  <OwnerBadge owner={detailRow.owner} />
+                  <OwnerBadge owners={detailRow.owners} />
                 </div>
                 <button onClick={() => setDetailRow(null)} className="text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300">
                   <X size={18} />
@@ -569,24 +581,30 @@ export default function TimelinePage() {
               <div>
                 <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Hvem</label>
                 <div className="mt-1 flex gap-2">
-                  {(['hajrudin', 'walid'] as const).map((o) => (
-                    <button
-                      key={o}
-                      type="button"
-                      onClick={() => setFormOwner(o)}
-                      className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                        formOwner === o
-                          ? 'border-stone-900 bg-stone-900 text-white dark:border-stone-600 dark:bg-stone-700'
-                          : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700'
-                      }`}
-                    >
-                      <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${OWNER_COLOR[o].bg}`}>
-                        {OWNER_LABEL[o][0]}
-                      </span>
-                      {OWNER_LABEL[o]}
-                    </button>
-                  ))}
+                  {(['hajrudin', 'walid'] as const).map((o) => {
+                    const isSelected = formOwners.includes(o);
+                    return (
+                      <button
+                        key={o}
+                        type="button"
+                        onClick={() => setFormOwners((prev) => (prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o]))}
+                        className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                          isSelected
+                            ? 'border-stone-900 bg-stone-900 text-white dark:border-stone-600 dark:bg-stone-700'
+                            : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700'
+                        }`}
+                      >
+                        <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${OWNER_COLOR[o].bg}`}>
+                          {OWNER_LABEL[o][0]}
+                        </span>
+                        {OWNER_LABEL[o]}
+                      </button>
+                    );
+                  })}
                 </div>
+                {formOwners.length === 2 && (
+                  <p className="mt-1.5 text-xs text-stone-400 dark:text-stone-500">Vises som &ldquo;Begge&rdquo; på tidslinjen</p>
+                )}
               </div>
             </div>
 
