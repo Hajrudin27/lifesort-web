@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { sendEmail, escapeHtml } from '@/lib/resend';
 
@@ -27,7 +28,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Ingen admin-adgang' }, { status: 403 });
   }
 
-  const { data: ticket, error: ticketError } = await supabase
+  const adminClient = createAdminClient();
+  const { data: ticket, error: ticketError } = await adminClient
     .from('support_tickets')
     .select('email, subject, message, admin_reply')
     .eq('id', ticketId)
