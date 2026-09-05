@@ -4,9 +4,36 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { sendEmail, escapeHtml } from '@/lib/resend';
 
+const CATEGORIES = ['general', 'bug', 'billing', 'feature', 'account'] as const;
+const PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
+
+type SupportCategory = (typeof CATEGORIES)[number];
+type SupportPriority = (typeof PRIORITIES)[number];
+
+const CATEGORY_LABEL: Record<SupportCategory, string> = {
+  general: 'Generelt',
+  bug: 'Fejl',
+  billing: 'Betaling',
+  feature: 'Feature',
+  account: 'Konto',
+};
+
+const PRIORITY_LABEL: Record<SupportPriority, string> = {
+  low: 'Lav',
+  normal: 'Normal',
+  high: 'Høj',
+  urgent: 'Haster',
+};
+
+function isOneOf<T extends readonly string[]>(value: unknown, options: T): value is T[number] {
+  return typeof value === 'string' && options.includes(value);
+}
+
 export async function POST(request: Request) {
   const body = await request.json();
   const { name, email, subject, message, company } = body;
+  const category: SupportCategory = isOneOf(body.category, CATEGORIES) ? body.category : 'general';
+  const priority: SupportPriority = isOneOf(body.priority, PRIORITIES) ? body.priority : 'normal';
 
   // Honeypot: bots that fill in every field trip this. Pretend success, insert nothing.
   if (typeof company === 'string' && company.trim().length > 0) {
@@ -37,6 +64,8 @@ export async function POST(request: Request) {
     email: email.trim(),
     subject: subject.trim(),
     message: message.trim(),
+    category,
+    priority,
   });
 
   if (error) {
@@ -52,6 +81,8 @@ export async function POST(request: Request) {
       <p>Hej ${escapeHtml(name.trim())},</p>
       <p>Tak for din besked — vi har modtaget den og svarer hurtigst muligt.</p>
       <p style="color: #78716c; font-size: 13px; margin-top: 24px;">
+        Kategori: <strong>${CATEGORY_LABEL[category]}</strong><br>
+        Prioritet: <strong>${PRIORITY_LABEL[priority]}</strong><br><br>
         Din besked:<br>
         <strong>${escapeHtml(subject.trim())}</strong><br>
         <em>${escapeHtml(message.trim()).replace(/\n/g, '<br>')}</em>
