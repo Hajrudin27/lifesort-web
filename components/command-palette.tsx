@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, LayoutDashboard, Tag, BookOpen, Percent, Inbox, Users,
-  Milestone, Activity, ShieldCheck, CornerDownLeft, ChefHat, HeartPulse, Loader2, DatabaseBackup,
+  Milestone, Activity, ShieldCheck, CornerDownLeft, ChefHat, HeartPulse, Loader2, DatabaseBackup, Copy,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -32,6 +32,7 @@ const ITEMS: PaletteItem[] = [
   { label: 'Sundhedstjek', description: 'Er miljøvariabler og Supabase sat rigtigt op?', href: '/admin/settings/health', icon: Activity, keywords: ['miljø', 'env', 'sundhed', 'system'] },
   { label: 'Eksportér data', description: 'Download alt admin-styret indhold som JSON', href: '/admin/settings/export', icon: DatabaseBackup, keywords: ['backup', 'eksport', 'json', 'export'] },
   { label: 'Standardpriser', description: 'Priser på tværs af butikker', href: '/admin/food/prices', icon: Tag, keywords: ['pris', 'produkt', 'butik', 'mad'] },
+  { label: 'Dublet-tjek', description: 'Find mulige dubletter i prislisten', href: '/admin/food/duplicates', icon: Copy, keywords: ['dublet', 'duplicate', 'dobbelt', 'pris'] },
   { label: 'Ugens tilbud', description: 'Aktive og kommende tilbud', href: '/admin/food/offers', icon: Percent, keywords: ['tilbud', 'rabat', 'mad'] },
   { label: 'Opskrifter', description: 'Madplanens opskriftsbibliotek', href: '/admin/food/recipes', icon: BookOpen, keywords: ['opskrift', 'mad', 'ingrediens'] },
   { label: 'Forhåndsvis madplan', description: 'Test madplan-algoritmen på jeres data', href: '/admin/food/preview', icon: ChefHat, keywords: ['madplan', 'preview', 'test', 'algoritme'] },
