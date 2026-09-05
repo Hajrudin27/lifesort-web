@@ -1,4 +1,15 @@
-import { CheckCircle2, XCircle, AlertTriangle, ShieldCheck } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Database,
+  MailCheck,
+  ServerCog,
+  ShieldCheck,
+  Table2,
+  XCircle,
+} from 'lucide-react';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 type CheckStatus = 'ok' | 'missing' | 'warning';
@@ -9,10 +20,35 @@ type Check = {
   detail: string;
 };
 
-const STATUS_META: Record<CheckStatus, { icon: typeof CheckCircle2; text: string; bg: string }> = {
-  ok: { icon: CheckCircle2, text: 'text-emerald-700 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-500/15' },
-  missing: { icon: XCircle, text: 'text-red-700 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-500/15' },
-  warning: { icon: AlertTriangle, text: 'text-amber-700 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-500/15' },
+type CheckGroup = {
+  title: string;
+  description: string;
+  icon: typeof ShieldCheck;
+  checks: Check[];
+};
+
+const STATUS_META: Record<CheckStatus, { label: string; icon: typeof CheckCircle2; text: string; bg: string; badge: string }> = {
+  ok: {
+    label: 'Klar',
+    icon: CheckCircle2,
+    text: 'text-emerald-700 dark:text-emerald-400',
+    bg: 'bg-emerald-100 dark:bg-emerald-500/15',
+    badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
+  },
+  missing: {
+    label: 'Mangler',
+    icon: XCircle,
+    text: 'text-red-700 dark:text-red-400',
+    bg: 'bg-red-100 dark:bg-red-500/15',
+    badge: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400',
+  },
+  warning: {
+    label: 'Tjek',
+    icon: AlertTriangle,
+    text: 'text-amber-700 dark:text-amber-400',
+    bg: 'bg-amber-100 dark:bg-amber-500/15',
+    badge: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
+  },
 };
 
 function envCheck(name: string, label: string, required = true): Check {
@@ -23,8 +59,72 @@ function envCheck(name: string, label: string, required = true): Check {
   return { label, status: 'ok', detail: `${name} er sat` };
 }
 
+function boolCheck(label: string, ok: boolean, okDetail: string, missingDetail: string, missingStatus: CheckStatus = 'missing'): Check {
+  return {
+    label,
+    status: ok ? 'ok' : missingStatus,
+    detail: ok ? okDetail : missingDetail,
+  };
+}
+
+function countCheck(label: string, count: number | null, warningAt = 1): Check {
+  const value = count ?? 0;
+  return {
+    label,
+    status: value >= warningAt ? 'ok' : 'warning',
+    detail: `${value} rækker fundet`,
+  };
+}
+
+function CheckRow({ check }: { check: Check }) {
+  const meta = STATUS_META[check.status];
+  const Icon = meta.icon;
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${meta.bg}`}>
+        <Icon size={17} className={meta.text} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{check.label}</p>
+          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meta.badge}`}>
+            {meta.label}
+          </span>
+        </div>
+        <p className="mt-0.5 truncate text-xs text-stone-500 dark:text-stone-400">{check.detail}</p>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  detail,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  icon: typeof ShieldCheck;
+  tone: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
+      <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${tone}`}>
+        <Icon className="h-5 w-5 text-white" strokeWidth={2.2} />
+      </div>
+      <p className="mt-4 text-2xl font-bold text-stone-900 dark:text-stone-100">{value}</p>
+      <p className="text-xs font-medium text-stone-500 dark:text-stone-400">{label}</p>
+      <p className="mt-2 text-xs text-stone-400 dark:text-stone-500">{detail}</p>
+    </div>
+  );
+}
+
 export default async function EnvironmentHealthPage() {
-  const checks: Check[] = [
+  const envChecks: Check[] = [
     envCheck('NEXT_PUBLIC_SUPABASE_URL', 'Supabase URL'),
     envCheck('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'Supabase anon-nøgle'),
     envCheck('SUPABASE_SERVICE_ROLE_KEY', 'Supabase service role-nøgle'),
@@ -36,29 +136,90 @@ export default async function EnvironmentHealthPage() {
   // RESEND_FROM_EMAIL har en fallback i koden, så den mangler aldrig teknisk set —
   // men uden den sender I stadig kun til jeres egen Resend-konto.
   const fromEmail = process.env.RESEND_FROM_EMAIL;
-  checks.push({
+  envChecks.push({
     label: 'Verificeret afsenderadresse',
     status: fromEmail ? 'ok' : 'warning',
     detail: fromEmail
-      ? `Sender fra ${fromEmail}`
-      : 'RESEND_FROM_EMAIL er ikke sat — sender stadig kun til jeres egen Resend-konto (onboarding@resend.dev)',
+      ? 'RESEND_FROM_EMAIL er sat'
+      : 'RESEND_FROM_EMAIL er ikke sat. Fallback kan kun sende begrænset via Resend.',
   });
 
   const sentryOrg = process.env.SENTRY_ORG;
-  checks.push({
+  envChecks.push({
     label: 'Sentry-organisation',
     status: sentryOrg ? 'ok' : 'warning',
-    detail: sentryOrg ? `Org sat til ${sentryOrg}` : 'SENTRY_ORG er ikke sat — source maps uploades ikke',
+    detail: sentryOrg ? 'SENTRY_ORG er sat' : 'SENTRY_ORG er ikke sat. Source maps uploades ikke.',
   });
 
   // Rigtig forbindelsestest, ikke kun om nøglerne er sat.
   let supabaseLive: Check;
+  let databaseChecks: Check[] = [];
+  let contentChecks: Check[] = [];
   try {
     const supabase = await createClient();
     const { error } = await supabase.from('admin_users').select('id', { count: 'exact', head: true });
     supabaseLive = error
       ? { label: 'Supabase-forbindelse', status: 'missing', detail: `Forespørgsel fejlede: ${error.message}` }
       : { label: 'Supabase-forbindelse', status: 'ok', detail: 'Forespørgsel til admin_users lykkedes' };
+
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const admin = createAdminClient();
+      const [
+        supportSchema,
+        waitlistSchema,
+        activitySchema,
+        waitlistCount,
+        ticketsCount,
+        recipesCount,
+        pricesCount,
+        conditionsCount,
+        symptomsCount,
+      ] = await Promise.all([
+        admin.from('support_tickets').select('id, status, priority, category, internal_note, updated_at').limit(1),
+        admin.from('waitlist_signups').select('id, email, platform, confirmed, confirm_token, created_at').limit(1),
+        admin.from('activity_log').select('id, entity_id, entity_type, entity_label').limit(1),
+        admin.from('waitlist_signups').select('id', { count: 'exact', head: true }),
+        admin.from('support_tickets').select('id', { count: 'exact', head: true }),
+        admin.from('global_recipes').select('id', { count: 'exact', head: true }),
+        admin.from('global_standard_prices').select('id', { count: 'exact', head: true }),
+        admin.from('health_conditions').select('id', { count: 'exact', head: true }),
+        admin.from('symptom_glossary').select('id', { count: 'exact', head: true }),
+      ]);
+
+      databaseChecks = [
+        boolCheck(
+          'Support-schema',
+          !supportSchema.error,
+          'Prioritet, kategori, intern note og updated_at er tilgængelige',
+          supportSchema.error?.message ?? 'Support-schema kunne ikke tjekkes'
+        ),
+        boolCheck(
+          'Venteliste-schema',
+          !waitlistSchema.error,
+          'Bekræftelsesstatus og confirm_token er tilgængelige',
+          waitlistSchema.error?.message ?? 'Venteliste-schema kunne ikke tjekkes'
+        ),
+        boolCheck(
+          'Aktivitetslog lookup',
+          !activitySchema.error,
+          'entity_id kan bruges til historik på konkrete sager',
+          activitySchema.error?.message ?? 'Aktivitetslog-schema kunne ikke tjekkes'
+        ),
+      ];
+
+      contentChecks = [
+        countCheck('Venteliste', waitlistCount.count),
+        countCheck('Supportsager', ticketsCount.count, 0),
+        countCheck('Opskrifter', recipesCount.count, 5),
+        countCheck('Standardpriser', pricesCount.count, 20),
+        countCheck('Sundhedstilstande', conditionsCount.count, 3),
+        countCheck('Symptomordbog', symptomsCount.count, 3),
+      ];
+    } else {
+      databaseChecks = [
+        { label: 'Service role schema-tjek', status: 'missing', detail: 'SUPABASE_SERVICE_ROLE_KEY eller URL mangler' },
+      ];
+    }
   } catch (err) {
     supabaseLive = {
       label: 'Supabase-forbindelse',
@@ -66,44 +227,112 @@ export default async function EnvironmentHealthPage() {
       detail: err instanceof Error ? err.message : 'Ukendt fejl',
     };
   }
-  checks.splice(3, 0, supabaseLive);
+  envChecks.splice(3, 0, supabaseLive);
 
-  const missingCount = checks.filter((c) => c.status === 'missing').length;
-  const warningCount = checks.filter((c) => c.status === 'warning').length;
+  const cronChecks: Check[] = [
+    boolCheck(
+      'Ugentlig digest',
+      Boolean(process.env.CRON_SECRET && process.env.RESEND_API_KEY),
+      'Cron-secret og Resend API-nøgle er sat',
+      'CRON_SECRET eller RESEND_API_KEY mangler'
+    ),
+    boolCheck(
+      'Email-afsender',
+      Boolean(process.env.RESEND_FROM_EMAIL),
+      'Afsenderdomæne er sat via RESEND_FROM_EMAIL',
+      'RESEND_FROM_EMAIL mangler. Support-mails kan være begrænset.',
+      'warning'
+    ),
+    boolCheck(
+      'Fejlsporing',
+      Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN),
+      'Sentry DSN er sat',
+      'Sentry DSN mangler. Fejl bliver ikke samlet centralt.',
+      'warning'
+    ),
+  ];
+
+  const groups: CheckGroup[] = [
+    {
+      title: 'Miljø',
+      description: 'Servernøgler, email og fejlsporing',
+      icon: ServerCog,
+      checks: envChecks,
+    },
+    {
+      title: 'Database',
+      description: 'Forbindelse og schema for de nyeste adminfeatures',
+      icon: Database,
+      checks: databaseChecks,
+    },
+    {
+      title: 'Indhold',
+      description: 'Datagrundlag for hjemmeside, launch og admin',
+      icon: Table2,
+      checks: contentChecks,
+    },
+    {
+      title: 'Automatik',
+      description: 'Email og ugentlige admin-digests',
+      icon: MailCheck,
+      checks: cronChecks,
+    },
+  ];
+
+  const allChecks = groups.flatMap((group) => group.checks);
+  const okCount = allChecks.filter((c) => c.status === 'ok').length;
+  const missingCount = allChecks.filter((c) => c.status === 'missing').length;
+  const warningCount = allChecks.filter((c) => c.status === 'warning').length;
+  const checkedAt = new Date().toLocaleString('da-DK', { dateStyle: 'medium', timeStyle: 'short' });
 
   return (
     <div>
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-stone-800 to-stone-900">
-          <ShieldCheck className="h-5 w-5 text-white" strokeWidth={2.2} />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-stone-800 to-stone-900">
+            <ShieldCheck className="h-5 w-5 text-white" strokeWidth={2.2} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Sundhedstjek</h1>
+            <p className="text-sm text-stone-500 dark:text-stone-400">
+              {missingCount > 0
+                ? `${missingCount} kritiske ting kræver handling`
+                : warningCount > 0
+                  ? `${warningCount} ting bør tjekkes`
+                  : 'Alt ser klar ud'}
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Miljø-sundhedstjek</h1>
-          <p className="text-sm text-stone-500 dark:text-stone-400">
-            {missingCount > 0
-              ? `${missingCount} kritiske ting mangler`
-              : warningCount > 0
-                ? `${warningCount} ting er ikke helt sat op`
-                : 'Alt ser korrekt konfigureret ud'}
-          </p>
+        <div className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-500 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400">
+          <Clock3 size={14} />
+          {checkedAt}
         </div>
       </div>
 
-      <div className="mt-6 flex flex-col gap-2">
-        {checks.map((check) => {
-          const meta = STATUS_META[check.status];
-          const Icon = meta.icon;
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <SummaryCard label="Klar" value={okCount.toString()} detail="Tjek der er grønne" icon={CheckCircle2} tone="from-emerald-500 to-emerald-600" />
+        <SummaryCard label="Bør tjekkes" value={warningCount.toString()} detail="Ikke blokerende, men værd at rydde op" icon={AlertTriangle} tone="from-amber-500 to-amber-600" />
+        <SummaryCard label="Kritisk" value={missingCount.toString()} detail="Kan blokere features eller drift" icon={XCircle} tone="from-red-500 to-red-600" />
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {groups.map((group) => {
+          const Icon = group.icon;
           return (
-            <div key={check.label}
-              className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
-              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${meta.bg}`}>
-                <Icon size={17} className={meta.text} />
+            <section key={group.title} className="rounded-2xl border border-stone-200 bg-stone-50/60 p-4 dark:border-stone-800 dark:bg-stone-950/40">
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-stone-500 shadow-sm shadow-stone-900/5 dark:bg-stone-900 dark:text-stone-400">
+                  <Icon size={15} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-stone-900 dark:text-stone-100">{group.title}</h2>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">{group.description}</p>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{check.label}</p>
-                <p className="truncate text-xs text-stone-500 dark:text-stone-400">{check.detail}</p>
+              <div className="flex flex-col gap-2">
+                {group.checks.map((check) => <CheckRow key={`${group.title}-${check.label}`} check={check} />)}
               </div>
-            </div>
+            </section>
           );
         })}
       </div>
