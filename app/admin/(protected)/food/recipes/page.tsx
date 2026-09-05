@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { BookOpen, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, X, Clock, ImagePlus, Loader2, Square, CheckSquare } from 'lucide-react';
+import { BookOpen, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, X, Clock, ImagePlus, Loader2, Square, CheckSquare, History } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { logActivity } from '@/lib/activity-log';
@@ -9,6 +9,7 @@ import { useAdminUser } from '@/components/admin-user-context';
 import { SkeletonRows } from '@/components/skeleton-rows';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { compressImage } from '@/lib/imageCompression';
+import { EntityHistoryModal } from '@/components/entity-history-modal';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner';
 type Ingredient = { name: string; amount: string };
@@ -73,6 +74,7 @@ export default function RecipesPage() {
   const [published, setPublished] = useState(true);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
 
   const fetchRows = useCallback(async () => {
     setIsLoading(true);
@@ -170,6 +172,7 @@ export default function RecipesPage() {
       updated_at: new Date().toISOString(),
     };
 
+    let newId: string | undefined;
     if (wasEditing) {
       // Optimistisk: opdater rækken i listen med det samme.
       setRows((prev) => prev.map((r) => (r.id === editingId ? { ...r, ...payload } : r)));
@@ -178,9 +181,10 @@ export default function RecipesPage() {
       setIsSaving(false);
       if (error) { showToast('Kunne ikke gemme opskriften.', 'error'); fetchRows(); return; }
     } else {
-      const { error } = await supabase.from('global_recipes').insert(payload);
+      const { data, error } = await supabase.from('global_recipes').insert(payload).select('id').single();
       setIsSaving(false);
       if (error) { showToast('Kunne ikke gemme opskriften.', 'error'); return; }
+      newId = data?.id;
       resetForm();
       fetchRows();
     }
@@ -189,6 +193,7 @@ export default function RecipesPage() {
     logActivity(supabase, {
       actorId: adminUser.id, actorName: adminUser.name,
       action: wasEditing ? 'updated' : 'created', entityType: 'recipe',
+      entityId: wasEditing ? editingId! : newId,
       entityLabel: name.trim(),
     });
   };
@@ -203,6 +208,7 @@ export default function RecipesPage() {
         logActivity(supabase, {
           actorId: adminUser.id, actorName: adminUser.name,
           action: 'deleted', entityType: 'recipe',
+          entityId: row.id,
           entityLabel: row.name,
         });
       },
@@ -313,7 +319,7 @@ export default function RecipesPage() {
               <select value={mealType} onChange={(e) => setMealType(e.target.value as MealType)}
                 className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-amber-900/30">
                 {MEAL_TYPES.map((m) => <option key={m} value={m}>{MEAL_LABELS[m]}</option>)}
-                </select>
+              </select>
             </div>
           </div>
 
@@ -483,15 +489,15 @@ export default function RecipesPage() {
                           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-stone-100 text-stone-300 dark:bg-stone-800 dark:text-stone-600">
                             <ImagePlus size={14} />
                           </div>
-                                                )}
-                                                <span className="font-medium text-stone-900 dark:text-stone-100">{row.name}</span>
-                                                {!row.published && (
-                                                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
-                                                    Kladde
-                                                  </span>
-                                                )}
-                                              </div>
-                                            </td>
+                        )}
+                        <span className="font-medium text-stone-900 dark:text-stone-100">{row.name}</span>
+                        {!row.published && (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+                            Kladde
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-5 py-3.5">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${MEAL_COLORS[row.meal_type]}`}>
                         {MEAL_LABELS[row.meal_type]}
@@ -505,6 +511,9 @@ export default function RecipesPage() {
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => setHistoryFor({ id: row.id, name: row.name })} title="Historik" className="rounded-lg p-1.5 text-stone-500 transition hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800">
+                          <History size={15} />
+                        </button>
                         <button onClick={() => startEdit(row)} title="Redigér" className="rounded-lg p-1.5 text-stone-500 transition hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800">
                           <Pencil size={15} />
                         </button>
@@ -534,6 +543,15 @@ export default function RecipesPage() {
             Næste <ChevronRight size={14} />
           </button>
         </div>
+      )}
+
+      {historyFor && (
+        <EntityHistoryModal
+          entityType="recipe"
+          entityId={historyFor.id}
+          title={historyFor.name}
+          onClose={() => setHistoryFor(null)}
+        />
       )}
     </div>
   );

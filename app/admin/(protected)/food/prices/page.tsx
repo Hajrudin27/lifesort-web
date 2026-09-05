@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Tag, Plus, Trash2, Search, ChevronDown, Pencil, Percent, Check, X } from 'lucide-react';
+import { Tag, Plus, Trash2, Search, ChevronDown, Pencil, Percent, Check, X, History } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { useConfirm } from '@/components/confirm-dialog';
 import { PriceCsvImport } from '@/components/price-csv-import';
+import { EntityHistoryModal } from '@/components/entity-history-modal';
 import { logActivity } from '@/lib/activity-log';
 import { useAdminUser } from '@/components/admin-user-context';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -54,6 +55,7 @@ export default function ProductsPage() {
 
   const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
   const [editPriceValue, setEditPriceValue] = useState('');
+  const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
 
   const fetchAll = useCallback(async () => {
     setIsLoading(true);
@@ -114,7 +116,7 @@ export default function ProductsPage() {
     setNewProductName('');
     setExpandedId(data.id);
     showToast('Vare oprettet.');
-    logActivity(supabase, { actorId: adminUser.id, actorName: adminUser.name, action: 'created', entityType: 'price', entityLabel: name });
+    logActivity(supabase, { actorId: adminUser.id, actorName: adminUser.name, action: 'created', entityType: 'price', entityId: data.id, entityLabel: name });
   };
 
   const startRename = (product: ProductRow) => {
@@ -130,6 +132,7 @@ export default function ProductsPage() {
     const { error } = await supabase.from('products').update({ name }).eq('id', productId);
     if (error) { showToast('Kunne ikke omdøbe varen.', 'error'); fetchAll(); return; }
     showToast('Vare omdøbt.');
+    logActivity(supabase, { actorId: adminUser.id, actorName: adminUser.name, action: 'updated', entityType: 'price', entityId: productId, entityLabel: `Omdøbt til "${name}"` });
   };
 
   const handleDeleteProduct = async (product: ProductRow) => {
@@ -143,7 +146,7 @@ export default function ProductsPage() {
     const { error } = await supabase.from('products').delete().eq('id', product.id);
     if (error) { showToast('Kunne ikke slette varen.', 'error'); fetchAll(); return; }
     showToast('Vare slettet.');
-    logActivity(supabase, { actorId: adminUser.id, actorName: adminUser.name, action: 'deleted', entityType: 'price', entityLabel: product.name });
+    logActivity(supabase, { actorId: adminUser.id, actorName: adminUser.name, action: 'deleted', entityType: 'price', entityId: product.id, entityLabel: product.name });
   };
 
   const openAddPrice = (productId: string) => {
@@ -179,7 +182,7 @@ export default function ProductsPage() {
     );
     setAddingPriceFor(null);
     showToast('Pris tilføjet.');
-    logActivity(supabase, { actorId: adminUser.id, actorName: adminUser.name, action: 'created', entityType: 'price', entityLabel: `${product.name} (${resolvedStore})` });
+    logActivity(supabase, { actorId: adminUser.id, actorName: adminUser.name, action: 'created', entityType: 'price', entityId: product.id, entityLabel: `${product.name} (${resolvedStore})` });
     if (!stores.includes(resolvedStore)) setStores((prev) => [...prev, resolvedStore].sort());
   };
 
@@ -191,6 +194,8 @@ export default function ProductsPage() {
   const saveEditPrice = async (productId: string, priceId: string) => {
     const value = parseFloat(editPriceValue);
     if (isNaN(value) || value <= 0) return;
+    const product = products.find((p) => p.id === productId);
+    const price = product?.prices.find((pr) => pr.id === priceId);
     setProducts((prev) =>
       prev.map((p) => (p.id === productId ? { ...p, prices: p.prices.map((pr) => (pr.id === priceId ? { ...pr, price: value } : pr)) } : p))
     );
@@ -198,6 +203,7 @@ export default function ProductsPage() {
     const { error } = await supabase.from('global_standard_prices').update({ price: value, updated_at: new Date().toISOString() }).eq('id', priceId);
     if (error) { showToast('Kunne ikke opdatere prisen.', 'error'); fetchAll(); return; }
     showToast('Pris opdateret.');
+    logActivity(supabase, { actorId: adminUser.id, actorName: adminUser.name, action: 'updated', entityType: 'price', entityId: productId, entityLabel: `Pris i ${price?.store ?? 'butik'} ændret til ${value.toFixed(2)} kr.` });
   };
 
   const handleDeletePrice = (product: ProductRow, price: StorePrice) => {
@@ -207,7 +213,7 @@ export default function ProductsPage() {
       async () => {
         const { error } = await supabase.from('global_standard_prices').delete().eq('id', price.id);
         if (error) { showToast('Kunne ikke slette prisen.', 'error'); fetchAll(); return; }
-        logActivity(supabase, { actorId: adminUser.id, actorName: adminUser.name, action: 'deleted', entityType: 'price', entityLabel: `${product.name} (${price.store})` });
+        logActivity(supabase, { actorId: adminUser.id, actorName: adminUser.name, action: 'deleted', entityType: 'price', entityId: product.id, entityLabel: `${product.name} (${price.store})` });
       },
       () => fetchAll()
     );
@@ -305,6 +311,9 @@ export default function ProductsPage() {
                           <Pencil size={12} /> Omdøb
                         </button>
                       )}
+                      <button onClick={() => setHistoryFor({ id: product.id, name: product.name })} className="flex items-center gap-1 text-xs font-semibold text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">
+                        <History size={12} /> Historik
+                      </button>
                       <button onClick={() => handleDeleteProduct(product)} className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline dark:text-red-400">
                         <Trash2 size={12} /> Slet vare
                       </button>
@@ -384,6 +393,15 @@ export default function ProductsPage() {
           })
         )}
       </div>
+
+      {historyFor && (
+        <EntityHistoryModal
+          entityType="price"
+          entityId={historyFor.id}
+          title={historyFor.name}
+          onClose={() => setHistoryFor(null)}
+        />
+      )}
     </div>
   );
 }

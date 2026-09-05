@@ -14,6 +14,7 @@ export async function logActivity(
     actorName: string;
     action: ActivityAction;
     entityType: ActivityEntityType;
+    entityId?: string;
     entityLabel: string;
   }
 ) {
@@ -23,6 +24,7 @@ export async function logActivity(
       actor_name: params.actorName,
       action: params.action,
       entity_type: params.entityType,
+      entity_id: params.entityId ?? null,
       entity_label: params.entityLabel,
     });
   } catch {

@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Inbox, Search, Mail, Clock, Archive, Send, RotateCw } from 'lucide-react';
+import { Inbox, Search, Mail, Clock, Archive, Send, RotateCw, History } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { logActivity } from '@/lib/activity-log';
 import { useAdminUser } from '@/components/admin-user-context';
 import { SkeletonRows } from '@/components/skeleton-rows';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { EntityHistoryModal } from '@/components/entity-history-modal';
 
 type TicketStatus = 'open' | 'answered' | 'closed';
 
@@ -57,6 +58,7 @@ export default function TicketsPage() {
   const [activeTicket, setActiveTicket] = useState<TicketRow | null>(null);
   const [replyText, setReplyText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const fetchRows = useCallback(async () => {
     setIsLoading(true);
@@ -93,6 +95,7 @@ export default function TicketsPage() {
   const closeModal = () => {
     setActiveTicket(null);
     setReplyText('');
+    setShowHistory(false);
   };
 
   const handleSaveReply = async () => {
@@ -109,6 +112,7 @@ export default function TicketsPage() {
     logActivity(supabase, {
       actorId: adminUser.id, actorName: adminUser.name,
       action: 'replied', entityType: 'ticket',
+      entityId: activeTicket.id,
       entityLabel: activeTicket.subject,
     });
 
@@ -167,6 +171,7 @@ export default function TicketsPage() {
     logActivity(supabase, {
       actorId: adminUser.id, actorName: adminUser.name,
       action: 'updated', entityType: 'ticket',
+      entityId: activeTicket.id,
       entityLabel: `${activeTicket.subject} (${status === 'closed' ? 'lukket' : 'genåbnet'})`,
     });
   };
@@ -311,6 +316,10 @@ export default function TicketsPage() {
                     {isResending ? 'Sender...' : 'Gensend email'}
                   </button>
                 )}
+                <button onClick={() => setShowHistory(true)}
+                  className="flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200">
+                  <History size={13} /> Historik
+                </button>
               </div>
               <div className="flex gap-2">
                 <button onClick={closeModal} className="rounded-xl border border-stone-200 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800">
@@ -326,6 +335,15 @@ export default function TicketsPage() {
           </div>
          </div>
         </div>
+      )}
+
+      {showHistory && activeTicket && (
+        <EntityHistoryModal
+          entityType="ticket"
+          entityId={activeTicket.id}
+          title={activeTicket.subject}
+          onClose={() => setShowHistory(false)}
+        />
       )}
     </div>
   );

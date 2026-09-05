@@ -3,12 +3,13 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Milestone, Plus, X, Pencil, Trash2, CheckCircle2, CircleDashed,
-  Clock3, AlertTriangle, Sparkles, Check, Archive, RotateCcw, Inbox,
+  Clock3, AlertTriangle, Sparkles, Check, Archive, RotateCcw, Inbox, History,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { logActivity } from '@/lib/activity-log';
 import { useAdminUser } from '@/components/admin-user-context';
+import { EntityHistoryModal } from '@/components/entity-history-modal';
 
 type Owner = 'hajrudin' | 'walid';
 type Status = 'upcoming' | 'in_progress' | 'done';
@@ -110,6 +111,7 @@ export default function TimelinePage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [detailRow, setDetailRow] = useState<TimelineRow | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   const fetchRows = useCallback(async () => {
     setIsLoading(true);
@@ -215,6 +217,7 @@ export default function TimelinePage() {
       owners: formOwners,
     };
 
+    let newId: string | undefined;
     if (editingId) {
       const idToUpdate = editingId;
       setRows((prev) => prev.map((r) => (r.id === idToUpdate ? { ...r, ...payload } : r)));
@@ -223,9 +226,10 @@ export default function TimelinePage() {
       setIsSaving(false);
       if (error) { showToast('Kunne ikke gemme posten.', 'error'); fetchRows(); return; }
     } else {
-      const { error } = await supabase.from('timeline_events').insert(payload);
+      const { data, error } = await supabase.from('timeline_events').insert(payload).select('id').single();
       setIsSaving(false);
       if (error) { showToast('Kunne ikke gemme posten.', 'error'); return; }
+      newId = data?.id;
       closeForm();
       fetchRows();
     }
@@ -234,6 +238,7 @@ export default function TimelinePage() {
     logActivity(supabase, {
       actorId: adminUser.id, actorName: adminUser.name,
       action: editingId ? 'updated' : 'created', entityType: 'timeline_event',
+      entityId: editingId ?? newId,
       entityLabel: formTitle.trim(),
     });
   };
@@ -249,6 +254,7 @@ export default function TimelinePage() {
         logActivity(supabase, {
           actorId: adminUser.id, actorName: adminUser.name,
           action: 'deleted', entityType: 'timeline_event',
+          entityId: row.id,
           entityLabel: row.title,
         });
       },
@@ -269,6 +275,7 @@ export default function TimelinePage() {
         logActivity(supabase, {
           actorId: adminUser.id, actorName: adminUser.name,
           action: 'updated', entityType: 'timeline_event',
+          entityId: row.id,
           entityLabel: `${row.title} (arkiveret)`,
         });
       },
@@ -285,6 +292,7 @@ export default function TimelinePage() {
     logActivity(supabase, {
       actorId: adminUser.id, actorName: adminUser.name,
       action: 'updated', entityType: 'timeline_event',
+      entityId: row.id,
       entityLabel: `${row.title} (genåbnet)`,
     });
   };
@@ -514,6 +522,10 @@ export default function TimelinePage() {
                   <Trash2 size={14} /> Slet
                 </button>
                 <div className="flex gap-2">
+                  <button onClick={() => setShowHistory(true)}
+                    className="flex items-center gap-1.5 rounded-xl border border-stone-200 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800">
+                    <History size={14} /> Historik
+                  </button>
                   {detailRow.status === 'done' ? (
                     <button onClick={() => handleReopen(detailRow)}
                       className="flex items-center gap-1.5 rounded-xl border border-stone-200 px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800">
@@ -620,6 +632,15 @@ export default function TimelinePage() {
           </div>
          </div>
         </div>
+      )}
+
+      {showHistory && detailRow && (
+        <EntityHistoryModal
+          entityType="timeline_event"
+          entityId={detailRow.id}
+          title={detailRow.title}
+          onClose={() => setShowHistory(false)}
+        />
       )}
     </div>
   );
