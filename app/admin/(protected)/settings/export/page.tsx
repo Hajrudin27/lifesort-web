@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Papa from 'papaparse';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
+import { rowsToCsv } from '@/lib/csv';
 
 // Kun admin-styret indhold. Almindelige brugeres personlige data ligger under RLS
 // og skal ikke kunne eksporteres fra admin-panelet.
@@ -80,12 +80,6 @@ function downloadFile(filename: string, content: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
-function csvValue(value: unknown) {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value;
-  return JSON.stringify(value);
-}
-
 function toCsv(results: ExportResult[]) {
   const rows = results.flatMap((result) =>
     result.data.map((row, index) => {
@@ -96,7 +90,7 @@ function toCsv(results: ExportResult[]) {
       };
 
       Object.entries(row).forEach(([key, value]) => {
-        normalized[key] = csvValue(value);
+        normalized[key] = value;
       });
 
       return normalized;
@@ -106,7 +100,9 @@ function toCsv(results: ExportResult[]) {
   if (rows.length === 0) return 'table,table_name,row_number\n';
 
   const columns = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
-  return Papa.unparse(rows, { columns });
+  // Supportsager og venteliste indeholder tekst skrevet af fremmede — rowsToCsv citerer
+  // korrekt og neutraliserer celler et regneark ellers ville køre som formler.
+  return rowsToCsv(rows, columns);
 }
 
 function formatSelection(selection: SelectedTable) {

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
+import { rowsToCsv } from '@/lib/csv';
 import { SkeletonRows } from '@/components/skeleton-rows';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
@@ -189,9 +190,10 @@ export default function WaitlistPage() {
       return;
     }
 
-    const header = 'email,platform,confirmed,created_at';
-    const lines = data.map((r) => `${r.email},${r.platform},${r.confirmed},${r.created_at}`);
-    const csv = [header, ...lines].join('\n');
+    // Emails kommer fra en offentlig formular. Sat sammen i hånden kunne en adresse med
+    // komma eller linjeskift skabe nye felter og rækker i filen, og en adresse der
+    // begynder med = blive kørt som en formel, når filen åbnes i et regneark.
+    const csv = rowsToCsv(data, ['email', 'platform', 'confirmed', 'created_at']);
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
