@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { canAccessPath, type AdminRole } from '@/lib/admin-roles';
 
 type PaletteItem = {
   label: string;
@@ -49,7 +50,7 @@ const ITEMS: PaletteItem[] = [
   { label: 'Venteliste', description: 'Tilmeldte til lanceringen', href: '/admin/waitlist', icon: Users, keywords: ['venteliste', 'tilmelding', 'email'] },
 ];
 
-export function CommandPalette() {
+export function CommandPalette({ role }: { role: AdminRole }) {
   const router = useRouter();
   const supabase = createClient();
   const [isOpen, setIsOpen] = useState(false);
@@ -60,16 +61,19 @@ export function CommandPalette() {
   const [isSearchingContent, setIsSearchingContent] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Paletten er en genvej til sider — den skal ikke tilbyde dem rollen ikke må åbne.
+  const visibleItems = useMemo(() => ITEMS.filter((item) => canAccessPath(role, item.href)), [role]);
+
   const filteredPages = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return ITEMS;
-    return ITEMS.filter(
+    if (!q) return visibleItems;
+    return visibleItems.filter(
       (item) =>
         item.label.toLowerCase().includes(q) ||
         item.description.toLowerCase().includes(q) ||
         item.keywords.some((k) => k.includes(q))
     );
-  }, [query]);
+  }, [query, visibleItems]);
 
   // Søger på tværs af det faktiske indhold (priser, opskrifter, supportsager) — ikke kun
   // sidenavne — når man har skrevet nok til, at det giver mening.

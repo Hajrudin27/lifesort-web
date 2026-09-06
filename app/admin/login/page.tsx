@@ -1,12 +1,23 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, Mail, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  // Middlewaren sender folk hertil med ?error=no-access, hvis de er logget ind som
+  // almindelig LifeSort-bruger. Uden en besked ville det ligne en tilfældig udlogning.
+  const noAccess = useSearchParams().get('error') === 'no-access';
   const supabase = createClient();
 
   const [email, setEmail] = useState('');
@@ -85,6 +96,12 @@ export default function LoginPage() {
             />
           </div>
         </div>
+
+        {noAccess && !error && (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            Din konto har ikke adgang til admin-panelet. Log ind med en administratorkonto.
+          </p>
+        )}
 
         {error && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
+import { requireAdmin } from '@/lib/admin-auth';
+import { CUSTOMER_DATA_ROLES } from '@/lib/admin-roles';
 import { sendEmail, escapeHtml } from '@/lib/resend';
 
 export async function POST(request: Request) {
@@ -11,21 +12,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'ticketId mangler' }, { status: 400 });
   }
 
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Ikke logget ind' }, { status: 401 });
-  }
-
-  const { data: adminRow } = await supabase
-    .from('admin_users')
-    .select('id')
-    .eq('id', user.id)
-    .single();
-
-  if (!adminRow) {
-    return NextResponse.json({ error: 'Ingen admin-adgang' }, { status: 403 });
+  const auth = await requireAdmin(CUSTOMER_DATA_ROLES);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const adminClient = createAdminClient();

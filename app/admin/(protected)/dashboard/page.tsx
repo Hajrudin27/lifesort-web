@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { Tag, Percent, BookOpen, Store, Inbox, Milestone, Activity, ArrowRight, AlertTriangle, TrendingUp } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
+import { requireAdmin } from '@/lib/admin-auth';
+import { CONTENT_ROLES, CUSTOMER_DATA_ROLES } from '@/lib/admin-roles';
 import { AnimatedNumber } from '@/components/animated-number';
 import { DashboardChart } from '@/components/dashboard-chart';
 
@@ -69,6 +71,13 @@ const ACTION_VERB: Record<string, string> = {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+
+  // RLS returnerer allerede tomt for det rollen ikke må se — men et kort med "0 åbne
+  // supportsager" ville se ud som om indbakken var tom i stedet for utilgængelig.
+  const auth = await requireAdmin();
+  const role = auth.ok ? auth.admin.role : null;
+  const canSeeCustomerData = !!role && CUSTOMER_DATA_ROLES.includes(role);
+  const canEditContent = !!role && CONTENT_ROLES.includes(role);
   const since30 = daysAgoIso(30);
 
   const [
@@ -96,7 +105,9 @@ export default async function DashboardPage() {
     { label: 'Ugens tilbud', value: offersCount.count ?? 0, icon: Percent, color: 'from-emerald-500 to-emerald-600' },
     { label: 'Opskrifter', value: recipesCount.count ?? 0, icon: BookOpen, color: 'from-amber-500 to-amber-600' },
     { label: 'Butikker', value: uniqueStores, icon: Store, color: 'from-sky-500 to-sky-600' },
-    { label: 'Åbne supportsager', value: openTicketsCount.count ?? 0, icon: Inbox, color: 'from-stone-600 to-stone-700' },
+    ...(canSeeCustomerData
+      ? [{ label: 'Åbne supportsager', value: openTicketsCount.count ?? 0, icon: Inbox, color: 'from-stone-600 to-stone-700' }]
+      : []),
   ];
 
   const today = todayStr();
@@ -123,6 +134,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
+      {canSeeCustomerData && (
       <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
         <div className="flex items-center gap-2">
           <TrendingUp size={16} className="text-stone-500 dark:text-stone-400" />
@@ -140,8 +152,10 @@ export default async function DashboardPage() {
           <DashboardChart data={chartData} />
         </div>
       </div>
+      )}
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {canEditContent && (
         <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -182,6 +196,7 @@ export default async function DashboardPage() {
             )}
           </div>
         </div>
+        )}
 
         <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
           <div className="flex items-center justify-between">

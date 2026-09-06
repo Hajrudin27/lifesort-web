@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { LayoutDashboard, Tag, BookOpen, Percent, Inbox, Users, Milestone, Activity, ShieldCheck, ChefHat, HeartPulse, DatabaseBackup, Copy, Rocket } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
+import { isAdminRole, CONTENT_ROLES, CUSTOMER_DATA_ROLES } from '@/lib/admin-roles';
 import SignOutButton from './sign-out-button';
 import { AdminUserProvider } from '@/components/admin-user-context';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -25,12 +26,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .eq('id', user.id)
     .single();
 
-  if (!adminRow) redirect('/admin/login');
+  if (!adminRow || !isAdminRole(adminRow.role)) redirect('/admin/login');
 
-  const { count: openTicketsCount } = await supabase
-    .from('support_tickets')
-    .select('id', { count: 'exact', head: true })
-    .eq('status', 'open');
+  const role = adminRow.role;
+  const isOwner = role === 'owner';
+  const canEditContent = CONTENT_ROLES.includes(role);
+  const canSeeCustomerData = CUSTOMER_DATA_ROLES.includes(role);
+
+  // Tælleren hentes kun hvis rollen må se supportsager — ellers ville badgen vise 0 og
+  // give indtryk af at indbakken var tom.
+  const { count: openTicketsCount } = canSeeCustomerData
+    ? await supabase
+        .from('support_tickets')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'open')
+    : { count: null };
 
   const initials = adminRow.full_name
     .split(' ')
@@ -41,7 +51,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <ThemeProvider>
-      <CommandPalette />
+      <CommandPalette role={role} />
       <aside className="flex w-60 flex-col bg-stone-900 p-4 text-stone-300">
         <div className="mb-8 flex items-center gap-2 px-2 pt-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 to-rose-600">
@@ -54,41 +64,53 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
         <nav className="flex-1 space-y-1">
           <AdminNavLink href="/admin/dashboard" icon={<LayoutDashboard size={17} />} label="Oversigt" />
-          <AdminNavLink href="/admin/launch" icon={<Rocket size={17} />} label="Launch" />
+          {isOwner && <AdminNavLink href="/admin/launch" icon={<Rocket size={17} />} label="Launch" />}
 
           <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
             Projekt
           </p>
-          <AdminNavLink href="/admin/timeline" icon={<Milestone size={17} />} label="Tidslinje" />
+          {canEditContent && <AdminNavLink href="/admin/timeline" icon={<Milestone size={17} />} label="Tidslinje" />}
           <AdminNavLink href="/admin/activity" icon={<Activity size={17} />} label="Aktivitet" />
-          <AdminNavLink href="/admin/admins" icon={<ShieldCheck size={17} />} label="Admins" />
-          <AdminNavLink href="/admin/settings/health" icon={<Activity size={17} />} label="Sundhedstjek" />
-          <AdminNavLink href="/admin/settings/export" icon={<DatabaseBackup size={17} />} label="Eksportér data" />
+          {isOwner && (
+            <>
+              <AdminNavLink href="/admin/admins" icon={<ShieldCheck size={17} />} label="Admins" />
+              <AdminNavLink href="/admin/settings/health" icon={<Activity size={17} />} label="Sundhedstjek" />
+              <AdminNavLink href="/admin/settings/export" icon={<DatabaseBackup size={17} />} label="Eksportér data" />
+            </>
+          )}
 
-          <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
-            Mad
-          </p>
-          <AdminNavLink href="/admin/food/prices" icon={<Tag size={17} />} label="Standardpriser" />
-          <AdminNavLink href="/admin/food/duplicates" icon={<Copy size={17} />} label="Dublet-tjek" />
-          <AdminNavLink href="/admin/food/offers" icon={<Percent size={17} />} label="Ugens tilbud" />
-          <AdminNavLink href="/admin/food/recipes" icon={<BookOpen size={17} />} label="Opskrifter" />
-          <AdminNavLink href="/admin/food/preview" icon={<ChefHat size={17} />} label="Forhåndsvis madplan" />
+          {canEditContent && (
+            <>
+              <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
+                Mad
+              </p>
+              <AdminNavLink href="/admin/food/prices" icon={<Tag size={17} />} label="Standardpriser" />
+              <AdminNavLink href="/admin/food/duplicates" icon={<Copy size={17} />} label="Dublet-tjek" />
+              <AdminNavLink href="/admin/food/offers" icon={<Percent size={17} />} label="Ugens tilbud" />
+              <AdminNavLink href="/admin/food/recipes" icon={<BookOpen size={17} />} label="Opskrifter" />
+              <AdminNavLink href="/admin/food/preview" icon={<ChefHat size={17} />} label="Forhåndsvis madplan" />
 
-          <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
-            Sundhed
-          </p>
-          <AdminNavLink href="/admin/health/conditions" icon={<HeartPulse size={17} />} label="Tilstande" />
-          <AdminNavLink href="/admin/health/symptoms" icon={<HeartPulse size={17} />} label="Symptomordbog" />
+              <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
+                Sundhed
+              </p>
+              <AdminNavLink href="/admin/health/conditions" icon={<HeartPulse size={17} />} label="Tilstande" />
+              <AdminNavLink href="/admin/health/symptoms" icon={<HeartPulse size={17} />} label="Symptomordbog" />
+            </>
+          )}
 
-          <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
-            Support
-          </p>
-          <AdminNavLink href="/admin/tickets" icon={<Inbox size={17} />} label="Supportsager" badge={openTicketsCount ?? 0} />
+          {canSeeCustomerData && (
+            <>
+              <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
+                Support
+              </p>
+              <AdminNavLink href="/admin/tickets" icon={<Inbox size={17} />} label="Supportsager" badge={openTicketsCount ?? 0} />
 
-          <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
-            Hjemmeside
-          </p>
-          <AdminNavLink href="/admin/waitlist" icon={<Users size={17} />} label="Venteliste" />
+              <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
+                Hjemmeside
+              </p>
+              <AdminNavLink href="/admin/waitlist" icon={<Users size={17} />} label="Venteliste" />
+            </>
+          )}
         </nav>
 
         <div className="mt-6 flex items-center gap-3 rounded-xl bg-stone-800/70 p-3">
