@@ -1,66 +1,20 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
+import { buildCsp } from "./lib/csp";
 
-/** Origin fra en URL, eller null hvis den mangler/er ugyldig. Bruges til at bygge CSP'en. */
-function originOf(value: string | undefined): string | null {
-  if (!value) return null;
-  try {
-    return new URL(value).origin;
-  } catch {
-    return null;
-  }
-}
-
-const supabaseOrigin = originOf(process.env.NEXT_PUBLIC_SUPABASE_URL);
-const supabaseSocket = supabaseOrigin?.replace(/^https:/, "wss:").replace(/^http:/, "ws:") ?? null;
-const sentryOrigin = originOf(process.env.NEXT_PUBLIC_SENTRY_DSN);
 const isDev = process.env.NODE_ENV !== "production";
 
-const connectSrc = [
-  "'self'",
-  supabaseOrigin,
-  supabaseSocket,
-  sentryOrigin,
-  // Vercel Analytics sender til samme origin (/_vercel/insights), så den behøver intet her.
-].filter(Boolean) as string[];
-
-const imgSrc = ["'self'", "data:", "blob:", supabaseOrigin].filter(Boolean) as string[];
-
 /**
- * Fuld politik. Køres foreløbig i Report-Only, fordi en CSP der rammer forkert bryder
- * siden lydløst for brugerne — først når rapporterne er tomme, kan den håndhæves.
+ * CSP'en for de offentlige, statiske sider.
  *
- * script-src har 'unsafe-inline' fordi Next.js' egne bootstrap-scripts er inline. Den
- * rigtige løsning er nonces udstedt i proxy.ts; det er næste skridt, når basispolitikken
- * er bekræftet i praksis.
+ * Hele politikken håndhæves nu. Den kørte før i Report-Only, hvor kun de direktiver der
+ * ikke kan bryde en side blev håndhævet — resten blev udelukkende rapporteret.
+ *
+ * /admin får sin egen politik med en nonce fra proxy.ts og er derfor bevidst holdt UDE af
+ * source-mønsteret nedenfor: to CSP-headere på samme svar håndhæves som fællesmængden af
+ * begge, og det er ikke noget man skal gætte sig til.
  */
-const reportOnlyPolicy = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-  `img-src ${imgSrc.join(" ")}`,
-  "font-src 'self' data:",
-  "style-src 'self' 'unsafe-inline'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
-  `connect-src ${connectSrc.join(" ")}`,
-  "worker-src 'self' blob:",
-  "manifest-src 'self'",
-  "upgrade-insecure-requests",
-  "report-uri /api/csp-report",
-].join("; ");
-
-/**
- * Disse direktiver kan ikke bryde en normal Next-side, så de håndhæves med det samme:
- * de handler om hvem der må ramme os udefra, ikke om hvordan siden selv indlæses.
- */
-const enforcedPolicy = [
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-].join("; ");
+const publicPolicy = buildCsp({ isDev });
 
 const securityHeaders = [
   // Klikjacking: uden den kan admin-panelet lægges i en usynlig iframe, og en indlogget
@@ -75,8 +29,6 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
   },
-  { key: "Content-Security-Policy", value: enforcedPolicy },
-  { key: "Content-Security-Policy-Report-Only", value: reportOnlyPolicy },
 ];
 
 const nextConfig: NextConfig = {
@@ -88,7 +40,14 @@ const nextConfig: NextConfig = {
   // angreb mulige i sig selv, men det er gratis at lade være med at sige det.
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // Alt undtagen /admin, som får sin CSP sat i proxy.ts sammen med nonce'en.
+      {
+        source: "/((?!admin).*)",
+        headers: [{ key: "Content-Security-Policy", value: publicPolicy }],
+      },
+    ];
   },
 };
 

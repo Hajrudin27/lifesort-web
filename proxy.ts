@@ -1,9 +1,32 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { canAccessPath, isAdminRole } from '@/lib/admin-roles';
+import { buildCsp } from '@/lib/csp';
 
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  /**
+   * Nonce pr. request til admin-panelets CSP.
+   *
+   * Next.js læser nonce'en ud af den CSP vi sætter på REQUEST-headeren og påfører den sine
+   * egne script-tags. Derfor skal politikken stå begge steder: på requesten så Next kan se
+   * den, og på svaret så browseren håndhæver den.
+   *
+   * Proxy'en kører kun på /admin (se matcher), så det offentlige, statiske site berøres
+   * ikke — dets CSP kommer fra next.config.ts.
+   */
+  const nonce = crypto.randomUUID().replace(/-/g, '');
+  const csp = buildCsp({ nonce, isDev: process.env.NODE_ENV !== 'production' });
+
+  const withNonce = () => {
+    const headers = new Headers(request.headers);
+    headers.set('x-nonce', nonce);
+    headers.set('content-security-policy', csp);
+    const res = NextResponse.next({ request: { headers } });
+    res.headers.set('content-security-policy', csp);
+    return res;
+  };
+
+  let response = withNonce();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,7 +38,9 @@ export async function proxy(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
+          // Svaret bygges om her, så nonce og CSP skal sættes igen — ellers ville netop de
+          // requests der fornyer sessionen ryge ud uden politik.
+          response = withNonce();
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           );
