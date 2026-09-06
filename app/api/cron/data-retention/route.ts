@@ -37,6 +37,35 @@ function daysAgo(days: number): string {
   return d.toISOString();
 }
 
+/**
+ * Filer i attachments-bucket'en hvis ejer ikke længere findes.
+ *
+ * Databasen rydder sig selv når en konto slettes, men storage er et separat lag: rækken i
+ * public.attachments forsvinder, filen gør ikke. Appen sletter sine egne filer inden den
+ * beder om at få kontoen slettet, men det er klientens ansvar og kan fejle halvvejs. Her
+ * er det serveren der garanterer, at der ikke ligger private dokumenter tilbage fra en
+ * bruger der har bedt om at blive glemt.
+ */
+async function sweepOrphanedAttachments(supabase: ReturnType<typeof createAdminClient>) {
+  const { data: orphans, error } = await supabase.rpc('orphaned_attachment_paths', { p_limit: 500 });
+
+  if (error) {
+    captureDatabaseError(error, { route: 'cron-data-retention-orphan-lookup' });
+    return { removed: 0, failed: true };
+  }
+
+  const paths = (orphans ?? []).map((row: { path: string }) => row.path);
+  if (paths.length === 0) return { removed: 0, failed: false };
+
+  const { error: removeError } = await supabase.storage.from('attachments').remove(paths);
+  if (removeError) {
+    captureDatabaseError(removeError, { route: 'cron-data-retention-orphan-remove' });
+    return { removed: 0, failed: true };
+  }
+
+  return { removed: paths.length, failed: false };
+}
+
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -63,10 +92,16 @@ export async function GET(request: Request) {
         .lt('created_at', waitlistCutoff),
     ]);
 
+    const { data: orphans } = await supabase.rpc('orphaned_attachment_paths', { p_limit: 500 });
+
     return NextResponse.json({
       ok: true,
       dryRun: true,
-      wouldDelete: { tickets: tickets.count ?? 0, waitlistSignups: waitlist.count ?? 0 },
+      wouldDelete: {
+        tickets: tickets.count ?? 0,
+        waitlistSignups: waitlist.count ?? 0,
+        orphanedAttachments: (orphans ?? []).length,
+      },
       cutoffs: { tickets: ticketCutoff, waitlist: waitlistCutoff },
     });
   }
@@ -118,9 +153,19 @@ export async function GET(request: Request) {
     });
   }
 
+  const orphaned = await sweepOrphanedAttachments(supabase);
+
   return NextResponse.json({
     ok: true,
-    deleted: { tickets: ticketCount, waitlistSignups: signupCount },
-    failed: { tickets: Boolean(ticketError), waitlistSignups: Boolean(waitlistError) },
+    deleted: {
+      tickets: ticketCount,
+      waitlistSignups: signupCount,
+      orphanedAttachments: orphaned.removed,
+    },
+    failed: {
+      tickets: Boolean(ticketError),
+      waitlistSignups: Boolean(waitlistError),
+      orphanedAttachments: orphaned.failed,
+    },
   });
 }
