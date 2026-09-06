@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { BookOpen, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, X, Clock, ImagePlus, Loader2, Square, CheckSquare, History, Copy } from 'lucide-react';
+import { BookOpen, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, X, Clock, ImagePlus, Loader2, Square, CheckSquare, History, Copy, Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { logActivity } from '@/lib/activity-log';
@@ -306,6 +306,39 @@ export default function RecipesPage() {
     );
   };
 
+  const handleBulkPublishChange = async (nextPublished: boolean) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    const selectedCount = ids.length;
+    setRows((prev) => prev.map((row) => (selectedIds.has(row.id) ? { ...row, published: nextPublished } : row)));
+    setSelectedIds(new Set());
+
+    const { error } = await supabase
+      .from('global_recipes')
+      .update({ published: nextPublished, updated_at: new Date().toISOString() })
+      .in('id', ids);
+
+    if (error) {
+      showToast(nextPublished ? 'Kunne ikke udgive de valgte opskrifter.' : 'Kunne ikke gøre de valgte opskrifter til kladder.', 'error');
+      fetchRows();
+      return;
+    }
+
+    showToast(
+      nextPublished
+        ? `${selectedCount} ${selectedCount === 1 ? 'opskrift' : 'opskrifter'} udgivet.`
+        : `${selectedCount} ${selectedCount === 1 ? 'opskrift' : 'opskrifter'} gjort til kladde.`
+    );
+    logActivity(supabase, {
+      actorId: adminUser.id,
+      actorName: adminUser.name,
+      action: 'updated',
+      entityType: 'recipe',
+      entityLabel: `${selectedCount} opskrifter ${nextPublished ? 'udgivet' : 'gjort til kladde'} (bulk)`,
+    });
+  };
+
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
@@ -520,10 +553,16 @@ export default function RecipesPage() {
       {!showForm && (
         <>
           {selectedIds.size > 0 && (
-            <div className="mt-4 flex items-center justify-between rounded-xl bg-stone-900 px-4 py-2.5 text-sm text-white dark:bg-stone-800">
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-stone-900 px-4 py-2.5 text-sm text-white dark:bg-stone-800">
               <span>{selectedIds.size} valgt</span>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <button onClick={() => setSelectedIds(new Set())} className="text-stone-300 hover:text-white">Ryd valg</button>
+                <button onClick={() => handleBulkPublishChange(true)} className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 font-semibold hover:bg-emerald-700">
+                  <Eye size={13} /> Udgiv valgte
+                </button>
+                <button onClick={() => handleBulkPublishChange(false)} className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 font-semibold hover:bg-amber-700">
+                  <EyeOff size={13} /> Gør til kladde
+                </button>
                 <button onClick={handleBulkDelete} className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 font-semibold hover:bg-red-700">
                   <Trash2 size={13} /> Slet valgte
                 </button>
