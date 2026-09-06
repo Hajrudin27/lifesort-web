@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Apple, Bell, CheckCircle2, MailCheck, ShieldCheck, Smartphone, X } from 'lucide-react';
+import { FIELD_LIMITS } from '@/lib/validation';
 
 type Platform = 'ios' | 'android';
 
@@ -151,6 +152,7 @@ export function WaitlistCta({ variant = 'light' }: { variant?: 'light' | 'dark' 
                   <input
                     type="email"
                     required
+                    maxLength={FIELD_LIMITS.email}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="din@email.dk"

@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/nextjs';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit, getClientIp, emailKey } from '@/lib/rate-limit';
 import { sendEmail, escapeHtml } from '@/lib/resend';
+import { cleanText, cleanEmail, readJsonBody, FIELD_LIMITS } from '@/lib/validation';
 
 const CATEGORIES = ['general', 'bug', 'billing', 'feature', 'account'] as const;
 const PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
@@ -30,7 +31,11 @@ function isOneOf<T extends readonly string[]>(value: unknown, options: T): value
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) {
+    return NextResponse.json({ error: parsedBody.error }, { status: parsedBody.status });
+  }
+  const body = (parsedBody.data ?? {}) as Record<string, unknown>;
   const { name, email, subject, message, company } = body;
   const category: SupportCategory = isOneOf(body.category, CATEGORIES) ? body.category : 'general';
   const priority: SupportPriority = isOneOf(body.priority, PRIORITIES) ? body.priority : 'normal';
@@ -40,14 +45,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  if (
-    typeof name !== 'string' || name.trim().length === 0 ||
-    typeof email !== 'string' || email.trim().length === 0 ||
-    typeof subject !== 'string' || subject.trim().length === 0 ||
-    typeof message !== 'string' || message.trim().length === 0
-  ) {
-    return NextResponse.json({ error: 'Udfyld alle felter' }, { status: 400 });
-  }
+  const cleanName = cleanText(name, { label: 'Navn', max: FIELD_LIMITS.name });
+  const cleanSubject = cleanText(subject, { label: 'Emne', max: FIELD_LIMITS.subject });
+  const cleanMessage = cleanText(message, { label: 'Beskeden', max: FIELD_LIMITS.message });
+  const cleanFrom = cleanEmail(email);
+
+  if (!cleanName.ok) return NextResponse.json({ error: cleanName.error }, { status: 400 });
+  if (!cleanFrom.ok) return NextResponse.json({ error: cleanFrom.error }, { status: 400 });
+  if (!cleanSubject.ok) return NextResponse.json({ error: cleanSubject.error }, { status: 400 });
+  if (!cleanMessage.ok) return NextResponse.json({ error: cleanMessage.error }, { status: 400 });
 
   const ip = getClientIp(request);
   const { allowed } = checkRateLimit(`ticket:${ip}`, 5, 15 * 60 * 1000); // 5 per 15 min
@@ -61,7 +67,7 @@ export async function POST(request: Request) {
   // Kvitteringsmailen sendes til den adresse, afsenderen selv skriver. Uden en grænse pr.
   // adresse kan formularen bruges til at bombardere en tredjepart med mails fra vores
   // domæne — en IP-grænse alene stopper det ikke, hvis afsenderen skifter IP.
-  const { allowed: emailAllowed } = checkRateLimit(emailKey('ticket-email', email), 3, 60 * 60 * 1000);
+  const { allowed: emailAllowed } = checkRateLimit(emailKey('ticket-email', cleanFrom.value), 3, 60 * 60 * 1000);
   if (!emailAllowed) {
     return NextResponse.json(
       { error: 'For mange henvendelser fra denne email. Prøv igen senere.' },
@@ -71,10 +77,10 @@ export async function POST(request: Request) {
 
   const supabase = createAdminClient();
   const { error } = await supabase.from('support_tickets').insert({
-    name: name.trim(),
-    email: email.trim(),
-    subject: subject.trim(),
-    message: message.trim(),
+    name: cleanName.value,
+    email: cleanFrom.value,
+    subject: cleanSubject.value,
+    message: cleanMessage.value,
     category,
     priority,
   });
@@ -86,17 +92,17 @@ export async function POST(request: Request) {
 
   // Confirmation email is best-effort: the ticket is already saved either way.
   const emailResult = await sendEmail({
-    to: email.trim(),
+    to: cleanFrom.value,
     subject: 'Vi har modtaget din henvendelse',
     html: `
-      <p>Hej ${escapeHtml(name.trim())},</p>
+      <p>Hej ${escapeHtml(cleanName.value)},</p>
       <p>Tak for din besked — vi har modtaget den og svarer hurtigst muligt.</p>
       <p style="color: #78716c; font-size: 13px; margin-top: 24px;">
         Kategori: <strong>${CATEGORY_LABEL[category]}</strong><br>
         Prioritet: <strong>${PRIORITY_LABEL[priority]}</strong><br><br>
         Din besked:<br>
-        <strong>${escapeHtml(subject.trim())}</strong><br>
-        <em>${escapeHtml(message.trim()).replace(/\n/g, '<br>')}</em>
+        <strong>${escapeHtml(cleanSubject.value)}</strong><br>
+        <em>${escapeHtml(cleanMessage.value).replace(/\n/g, '<br>')}</em>
       </p>
       <p>Mvh<br>LifeSort Support</p>
     `,

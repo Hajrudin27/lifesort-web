@@ -13,6 +13,7 @@ import {
   UserCircle,
   Mail,
 } from 'lucide-react';
+import { FIELD_LIMITS } from '@/lib/validation';
 
 type SupportCategory = 'general' | 'bug' | 'billing' | 'feature' | 'account';
 
@@ -162,7 +163,7 @@ export function SupportForm() {
           <label className="flex items-center gap-1.5 text-xs font-semibold text-stone-500">
             <User size={12} /> Navn
           </label>
-          <input value={name} onChange={(e) => setName(e.target.value)}
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={FIELD_LIMITS.name}
             className="mt-1.5 w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
             placeholder="Dit navn" />
         </div>
@@ -170,7 +171,7 @@ export function SupportForm() {
           <label className="flex items-center gap-1.5 text-xs font-semibold text-stone-500">
             <Mail size={12} /> Email
           </label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={FIELD_LIMITS.email}
             className="mt-1.5 w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
             placeholder="din@email.dk" />
         </div>
@@ -214,7 +215,7 @@ export function SupportForm() {
         <label className="flex items-center gap-1.5 text-xs font-semibold text-stone-500">
           <FileText size={12} /> Emne
         </label>
-        <input value={subject} onChange={(e) => setSubject(e.target.value)}
+        <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={FIELD_LIMITS.subject}
           className="mt-1.5 w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
           placeholder="Hvad drejer det sig om?" />
       </div>
@@ -233,7 +234,7 @@ export function SupportForm() {
             Haster
           </label>
         </div>
-        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5}
+        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5} maxLength={FIELD_LIMITS.message}
           className="mt-1.5 w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
           placeholder={selectedCategory.placeholder} />
       </div>

@@ -5,15 +5,12 @@ import { requireAdmin, isAdminRole, type AdminRole } from '@/lib/admin-auth';
 import { logActivity } from '@/lib/activity-log';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { siteUrl } from '@/lib/site-config';
+import { cleanText, cleanEmail, readJsonBody, FIELD_LIMITS } from '@/lib/validation';
 
 // At oprette en admin er den mest privilegerede handling i panelet — kun ejere må det.
 // Ellers kunne enhver 'support'- eller 'editor'-admin invitere sig selv en ny 'owner'-konto
 // på en email de kontrollerer og dermed eskalere sine rettigheder.
 const ROLES_THAT_MAY_INVITE: readonly AdminRole[] = ['owner'];
-
-const MAX_NAME_LENGTH = 120;
-const MAX_EMAIL_LENGTH = 254;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
   const auth = await requireAdmin(ROLES_THAT_MAY_INVITE);
@@ -32,27 +29,20 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Ugyldig anmodning' }, { status: 400 });
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) {
+    return NextResponse.json({ error: parsedBody.error }, { status: parsedBody.status });
   }
-  const { email, fullName, role } = (body ?? {}) as Record<string, unknown>;
+  const { email, fullName, role } = (parsedBody.data ?? {}) as Record<string, unknown>;
 
-  if (typeof email !== 'string' || typeof fullName !== 'string') {
-    return NextResponse.json({ error: 'Navn og email skal udfyldes' }, { status: 400 });
-  }
+  const validName = cleanText(fullName, { label: 'Navn', max: FIELD_LIMITS.name });
+  if (!validName.ok) return NextResponse.json({ error: validName.error }, { status: 400 });
 
-  const cleanEmail = email.trim().toLowerCase();
-  const cleanName = fullName.trim();
+  const validEmail = cleanEmail(email);
+  if (!validEmail.ok) return NextResponse.json({ error: validEmail.error }, { status: 400 });
 
-  if (cleanName.length === 0 || cleanName.length > MAX_NAME_LENGTH) {
-    return NextResponse.json({ error: 'Navn mangler eller er for langt' }, { status: 400 });
-  }
-  if (cleanEmail.length === 0 || cleanEmail.length > MAX_EMAIL_LENGTH || !EMAIL_PATTERN.test(cleanEmail)) {
-    return NextResponse.json({ error: 'Ugyldig email' }, { status: 400 });
-  }
+  const cleanEmailValue = validEmail.value;
+  const cleanNameValue = validName.value;
 
   // Rollen valideres mod whitelisten FØR brugeren oprettes. Ellers ville en ugyldig rolle
   // først blive afvist af databasens check-constraint — efter at auth-brugeren var
@@ -65,7 +55,7 @@ export async function POST(request: Request) {
   const adminClient = createAdminClient();
 
   const { data: invited, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(
-    cleanEmail,
+    cleanEmailValue,
     { redirectTo: `${siteUrl}/admin/dashboard` }
   );
   if (inviteError || !invited?.user) {
@@ -78,7 +68,7 @@ export async function POST(request: Request) {
 
   const { error: insertError } = await adminClient.from('admin_users').insert({
     id: invited.user.id,
-    full_name: cleanName,
+    full_name: cleanNameValue,
     role: newRole,
   });
 
@@ -105,7 +95,7 @@ export async function POST(request: Request) {
     actorName: admin.fullName,
     action: 'invited',
     entityType: 'admin_user',
-    entityLabel: `${cleanName} (${cleanEmail}) som ${newRole}`,
+    entityLabel: `${cleanNameValue} (${cleanEmailValue}) som ${newRole}`,
   });
 
   return NextResponse.json({ ok: true });

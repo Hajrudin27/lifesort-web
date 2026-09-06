@@ -4,9 +4,14 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit, getClientIp, emailKey } from '@/lib/rate-limit';
 import { sendEmail } from '@/lib/resend';
 import { siteUrl } from '@/lib/site-config';
+import { cleanEmail, readJsonBody } from '@/lib/validation';
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) {
+    return NextResponse.json({ error: parsedBody.error }, { status: parsedBody.status });
+  }
+  const body = (parsedBody.data ?? {}) as Record<string, unknown>;
   const { email, platform, company } = body;
 
   // Honeypot: bots that fill in every field trip this. Pretend success, insert nothing.
@@ -14,13 +19,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  if (typeof email !== 'string' || email.trim().length === 0) {
-    return NextResponse.json({ error: 'Email mangler' }, { status: 400 });
+  const validEmail = cleanEmail(email);
+  if (!validEmail.ok) {
+    return NextResponse.json({ error: validEmail.error }, { status: 400 });
   }
   if (platform !== 'ios' && platform !== 'android') {
     return NextResponse.json({ error: 'Ugyldig platform' }, { status: 400 });
   }
-  const cleanEmail = email.trim().toLowerCase();
+  const cleanEmailValue = validEmail.value;
 
   const ip = getClientIp(request);
   const { allowed } = checkRateLimit(`waitlist:${ip}`, 8, 15 * 60 * 1000); // 8 per 15 min
@@ -32,7 +38,7 @@ export async function POST(request: Request) {
   }
 
   // Samme grund som i submit-ticket: bekræftelsesmailen går til den indtastede adresse.
-  const { allowed: emailAllowed } = checkRateLimit(emailKey('waitlist-email', cleanEmail), 3, 60 * 60 * 1000);
+  const { allowed: emailAllowed } = checkRateLimit(emailKey('waitlist-email', cleanEmailValue), 3, 60 * 60 * 1000);
   if (!emailAllowed) {
     return NextResponse.json({ ok: true, emailSent: false });
   }
@@ -40,7 +46,7 @@ export async function POST(request: Request) {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('waitlist_signups')
-    .insert({ email: cleanEmail, platform })
+    .insert({ email: cleanEmailValue, platform })
     .select('confirm_token')
     .single();
 
@@ -56,7 +62,7 @@ export async function POST(request: Request) {
 
   const confirmUrl = `${siteUrl}/api/confirm-waitlist?token=${data.confirm_token}`;
   const emailResult = await sendEmail({
-    to: cleanEmail,
+    to: cleanEmailValue,
     subject: 'Bekræft din tilmelding til LifeSort',
     html: `
       <p>Hej!</p>
