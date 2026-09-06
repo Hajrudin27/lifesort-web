@@ -2,7 +2,10 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Keep Turbopack scoped to this repo instead of the parent Documents folder.
+  turbopack: {
+    root: process.cwd(),
+  },
 };
 
 export default withSentryConfig(nextConfig, {
