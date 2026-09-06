@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
+import { captureDatabaseError } from '@/lib/observability';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit, getClientIp, emailKey } from '@/lib/rate-limit';
 import { sendEmail } from '@/lib/resend';
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
     if (error.code === '23505') {
       return NextResponse.json({ ok: true, emailSent: false });
     }
-    Sentry.captureException(error, { tags: { route: 'join-waitlist' } });
+    captureDatabaseError(error, { route: 'join-waitlist' });
     return NextResponse.json({ error: 'Kunne ikke tilmelde' }, { status: 500 });
   }
 

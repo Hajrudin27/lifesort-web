@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import * as Sentry from '@sentry/nextjs';
+import { captureDatabaseError } from '@/lib/observability';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdmin } from '@/lib/admin-auth';
 import { CUSTOMER_DATA_ROLES } from '@/lib/admin-roles';
@@ -54,7 +54,7 @@ async function logTicketActivity({
   });
 
   if (error) {
-    Sentry.captureException(error, { tags: { route: 'admin-ticket-update-activity-log' } });
+    captureDatabaseError(error, { route: 'admin-ticket-update-activity-log' });
   }
 }
 
@@ -134,8 +134,10 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (error) {
-      Sentry.captureException(error, { tags: { route: 'admin-ticket-update-base' } });
-      return NextResponse.json({ error: error.message ?? 'Kunne ikke opdatere supportsagen' }, { status: 500 });
+      captureDatabaseError(error, { route: 'admin-ticket-update-base' });
+      // Databasens egen besked navngiver relationer og constraints — den hører hjemme i
+      // fejlloggen, ikke i et svar til browseren.
+      return NextResponse.json({ error: 'Kunne ikke opdatere supportsagen' }, { status: 500 });
     }
 
     if (!data) {
@@ -170,7 +172,7 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (error) {
-    Sentry.captureException(error, { tags: { route: 'admin-ticket-update' } });
+    captureDatabaseError(error, { route: 'admin-ticket-update' });
     if (isMissingSchemaError(error)) {
       return NextResponse.json(
         { error: 'Support-migrationen mangler i databasen. Kør supabase db push, eller indsæt migrationen i Supabase SQL Editor, og prøv igen.' },

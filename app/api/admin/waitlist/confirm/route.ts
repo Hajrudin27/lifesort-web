@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import * as Sentry from '@sentry/nextjs';
+import { captureDatabaseError } from '@/lib/observability';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdmin } from '@/lib/admin-auth';
 import { CUSTOMER_DATA_ROLES } from '@/lib/admin-roles';
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (error) {
-    Sentry.captureException(error, { tags: { route: 'admin-waitlist-confirm' } });
+    captureDatabaseError(error, { route: 'admin-waitlist-confirm' });
     return NextResponse.json({ error: 'Kunne ikke bekræfte tilmeldingen' }, { status: 500 });
   }
 

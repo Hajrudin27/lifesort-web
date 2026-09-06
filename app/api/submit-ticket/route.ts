@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
+import { captureDatabaseError } from '@/lib/observability';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit, getClientIp, emailKey } from '@/lib/rate-limit';
 import { sendEmail, escapeHtml } from '@/lib/resend';
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
   });
 
   if (error) {
-    Sentry.captureException(error, { tags: { route: 'submit-ticket' } });
+    captureDatabaseError(error, { route: 'submit-ticket' });
     return NextResponse.json({ error: 'Kunne ikke oprette sagen' }, { status: 500 });
   }
 

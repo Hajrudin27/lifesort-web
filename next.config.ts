@@ -84,6 +84,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  // Fortæller ellers hver besøgende hvilken teknologi der kører her. Det gør ingen
+  // angreb mulige i sig selv, men det er gratis at lade være med at sige det.
+  poweredByHeader: false,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

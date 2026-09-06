@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import * as Sentry from '@sentry/nextjs';
+import { captureDatabaseError } from '@/lib/observability';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdmin, isAdminRole, type AdminRole } from '@/lib/admin-auth';
 import { OWNER_ONLY } from '@/lib/admin-roles';
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   const adminClient = createAdminClient();
   const { data: target, error: targetError } = await getTargetAdmin(adminClient, id);
   if (targetError) {
-    Sentry.captureException(targetError, { tags: { route: 'admin-admins-update-target' } });
+    captureDatabaseError(targetError, { route: 'admin-admins-update-target' });
     return NextResponse.json({ error: 'Kunne ikke hente admin-brugeren' }, { status: 500 });
   }
   if (!target || !isAdminRole(target.role)) {
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Der skal altid være mindst én owner tilbage.' }, { status: 400 });
       }
     } catch (err) {
-      Sentry.captureException(err, { tags: { route: 'admin-admins-owner-count' } });
+      captureDatabaseError(err, { route: 'admin-admins-owner-count' });
       return NextResponse.json({ error: 'Kunne ikke tjekke owner-beskyttelsen' }, { status: 500 });
     }
 
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (error) {
-      Sentry.captureException(error, { tags: { route: 'admin-admins-update-role' } });
+      captureDatabaseError(error, { route: 'admin-admins-update-role' });
       return NextResponse.json({ error: 'Kunne ikke opdatere rollen' }, { status: 500 });
     }
     if (!data || !isAdminRole(data.role)) {
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Der skal altid være mindst én owner tilbage.' }, { status: 400 });
     }
   } catch (err) {
-    Sentry.captureException(err, { tags: { route: 'admin-admins-owner-count' } });
+    captureDatabaseError(err, { route: 'admin-admins-owner-count' });
     return NextResponse.json({ error: 'Kunne ikke tjekke owner-beskyttelsen' }, { status: 500 });
   }
 
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
     .eq('id', typedTarget.id);
 
   if (error) {
-    Sentry.captureException(error, { tags: { route: 'admin-admins-remove-access' } });
+    captureDatabaseError(error, { route: 'admin-admins-remove-access' });
     return NextResponse.json({ error: 'Kunne ikke fjerne admin-adgangen' }, { status: 500 });
   }
 

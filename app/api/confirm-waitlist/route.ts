@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import * as Sentry from '@sentry/nextjs';
+import { captureDatabaseError } from '@/lib/observability';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { siteUrl } from '@/lib/site-config';
 
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     .maybeSingle();
 
   if (error) {
-    Sentry.captureException(error, { tags: { route: 'confirm-waitlist' } });
+    captureDatabaseError(error, { route: 'confirm-waitlist' });
     return NextResponse.redirect(`${siteUrl}/waitlist-confirmed?status=error`);
   }
 

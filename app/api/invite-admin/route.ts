@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
+import { captureDatabaseError } from '@/lib/observability';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdmin, isAdminRole, type AdminRole } from '@/lib/admin-auth';
 import { logActivity } from '@/lib/activity-log';
@@ -76,8 +77,8 @@ export async function POST(request: Request) {
     // Rul invitationen tilbage. Uden det ville der stå en auth-bruger tilbage, som kan
     // logge ind, men ikke har en admin_users-række — en konto i et udefineret mellemland.
     const { error: rollbackError } = await adminClient.auth.admin.deleteUser(invited.user.id);
-    Sentry.captureException(insertError, {
-      tags: { route: 'invite-admin' },
+    captureDatabaseError(insertError, {
+      route: 'invite-admin',
       extra: { rollbackFailed: rollbackError?.message ?? null },
     });
     return NextResponse.json(
