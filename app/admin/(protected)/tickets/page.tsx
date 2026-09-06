@@ -20,10 +20,13 @@ import {
   UserCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { orIlikeFilter } from '@/lib/postgrest';
 import { useToast } from '@/components/toast-provider';
 import { SkeletonRows } from '@/components/skeleton-rows';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { EntityHistoryModal } from '@/components/entity-history-modal';
+
+const TICKET_SEARCH_COLUMNS = ['name', 'email', 'subject'] as const;
 
 type TicketStatus = 'open' | 'waiting' | 'answered' | 'closed';
 type TicketPriority = 'low' | 'normal' | 'high' | 'urgent';
@@ -226,7 +229,7 @@ export default function TicketsPage() {
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
 
-    if (debouncedSearch.trim()) query = query.or(`name.ilike.%${debouncedSearch.trim()}%,email.ilike.%${debouncedSearch.trim()}%,subject.ilike.%${debouncedSearch.trim()}%`);
+    if (debouncedSearch.trim()) query = query.or(orIlikeFilter(TICKET_SEARCH_COLUMNS, debouncedSearch.trim()));
     if (statusFilter !== 'all') query = query.eq('status', statusFilter);
     if (isEnhancedSupportReady && priorityFilter !== 'all') query = query.eq('priority', priorityFilter);
     if (isEnhancedSupportReady && categoryFilter !== 'all') query = query.eq('category', categoryFilter);
