@@ -16,9 +16,10 @@ const toc = [
   { id: 'indsamling', label: '2. Hvilke oplysninger' },
   { id: 'formaal', label: '3. Hvorfor vi behandler dem' },
   { id: 'opbevaring', label: '4. Hvor data opbevares' },
-  { id: 'rettigheder', label: '5. Dine rettigheder' },
-  { id: 'cookies', label: '6. Cookies' },
-  { id: 'aendringer', label: '7. Ændringer' },
+  { id: 'opbevaringsperiode', label: '5. Hvor længe vi gemmer dem' },
+  { id: 'rettigheder', label: '6. Dine rettigheder' },
+  { id: 'cookies', label: '7. Cookies' },
+  { id: 'aendringer', label: '8. Ændringer' },
 ];
 
 export default function PrivacyPage() {
@@ -60,11 +61,27 @@ export default function PrivacyPage() {
 
               <section id="opbevaring">
                 <h2 className="text-base font-bold text-stone-900">4. Hvor opbevares dine data</h2>
-                <p className="mt-2">Dine data opbevares hos vores databaseudbyder, Supabase. Vi deler ikke dine oplysninger med tredjeparter til markedsføringsformål.</p>
+                <p className="mt-2">Dine oplysninger opbevares og behandles hos et lille antal leverandører, som handler efter vores instruks (databehandlere). Vi deler ikke dine oplysninger med tredjeparter til markedsføringsformål, og vi sælger dem ikke.</p>
+                <ul className="mt-3 list-disc space-y-1 pl-5">
+                  <li><strong>Supabase</strong> — database, filer og login. Her ligger alle de oplysninger du opretter i appen.</li>
+                  <li><strong>Vercel</strong> — hosting af app-serveren og hjemmesiden, samt anonym besøgsstatistik uden cookies.</li>
+                  <li><strong>Resend</strong> — udsendelse af emails. Bruger du supportformularen eller ventelisten, sendes din adresse og indholdet af din besked herigennem.</li>
+                  <li><strong>Sentry</strong> — fejlovervågning, så vi kan opdage og rette tekniske fejl. Vi sender bevidst ikke indholdet af dine data med i fejlrapporterne.</li>
+                </ul>
+              </section>
+
+              <section id="opbevaringsperiode">
+                <h2 className="text-base font-bold text-stone-900">5. Hvor længe gemmer vi dine data</h2>
+                <p className="mt-2">Vi gemmer ikke oplysninger længere end nødvendigt:</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li><strong>Data du opretter i appen</strong> gemmes, så længe du har en konto, og slettes når du beder om det.</li>
+                  <li><strong>Supportsager</strong> slettes automatisk 12 måneder efter, at sagen er lukket. Åbne sager slettes ikke.</li>
+                  <li><strong>Ubekræftede ventelistetilmeldinger</strong> slettes automatisk efter 30 dage. Bekræftede tilmeldinger gemmer vi, indtil appen er udgivet, eller til du beder os fjerne dig.</li>
+                </ul>
               </section>
 
               <section id="rettigheder">
-                <h2 className="text-base font-bold text-stone-900">5. Dine rettigheder</h2>
+                <h2 className="text-base font-bold text-stone-900">6. Dine rettigheder</h2>
                 <p className="mt-2">Du har efter GDPR ret til at:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5">
                   <li>Få indsigt i, hvilke oplysninger vi har om dig</li>
@@ -78,12 +95,12 @@ export default function PrivacyPage() {
               </section>
 
               <section id="cookies">
-                <h2 className="text-base font-bold text-stone-900">6. Cookies</h2>
+                <h2 className="text-base font-bold text-stone-900">7. Cookies</h2>
                 <p className="mt-2">Hjemmesiden bruger kun nødvendige cookies til login og sikkerhed. Vi bruger ikke cookies til sporing eller markedsføring.</p>
               </section>
 
               <section id="aendringer">
-                <h2 className="text-base font-bold text-stone-900">7. Ændringer</h2>
+                <h2 className="text-base font-bold text-stone-900">8. Ændringer</h2>
                 <p className="mt-2">Vi kan opdatere denne privatlivspolitik løbende. Væsentlige ændringer vil blive kommunikeret i appen.</p>
               </section>
             </div>
