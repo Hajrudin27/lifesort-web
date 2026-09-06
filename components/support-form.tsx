@@ -12,6 +12,7 @@ import {
   User,
   UserCircle,
   Mail,
+  ShieldCheck,
 } from 'lucide-react';
 import { FIELD_LIMITS } from '@/lib/validation';
 
@@ -76,7 +77,7 @@ function defaultPriority(category: SupportCategory, isUrgent: boolean) {
 export function SupportForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [category, setCategory] = useState<SupportCategory>('general');
+  const [category, setCategory] = useState<SupportCategory | null>(null);
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isUrgent, setIsUrgent] = useState(false);
@@ -85,8 +86,8 @@ export function SupportForm() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedCategory = CATEGORY_OPTIONS.find((option) => option.value === category) ?? CATEGORY_OPTIONS[0];
-  const canSubmit = name.trim().length > 0 && email.trim().length > 0 && subject.trim().length > 0 && message.trim().length > 0;
+  const selectedCategory = CATEGORY_OPTIONS.find((option) => option.value === category) ?? null;
+  const canSubmit = Boolean(category) && name.trim().length > 0 && email.trim().length > 0 && subject.trim().length > 0 && message.trim().length > 0;
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -97,7 +98,7 @@ export function SupportForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || !category) return;
     setIsSubmitting(true);
     setError(null);
 
@@ -132,15 +133,32 @@ export function SupportForm() {
 
   if (isSubmitted) {
     return (
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
+      <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-8 text-center shadow-sm shadow-emerald-900/5">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100">
           <CheckCircle2 className="h-7 w-7 text-emerald-600" />
         </div>
         <h2 className="mt-4 text-lg font-bold text-stone-900">Tak for din besked!</h2>
-        <p className="mt-1.5 text-sm text-stone-600">Vi har modtaget din henvendelse og svarer på {email} hurtigst muligt.</p>
+        <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-stone-600">
+          Vi har modtaget din henvendelse og svarer på {email} hurtigst muligt.
+        </p>
       </div>
     );
   }
+
+  if (!selectedCategory) {
+    return (
+      <div className="rounded-3xl border border-dashed border-stone-300 bg-white p-8 text-center shadow-sm shadow-stone-900/5">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+          <MessageSquare className="h-6 w-6" strokeWidth={2.2} />
+        </div>
+        <h2 className="mt-4 text-xl font-bold text-stone-900">Vælg en kategori først</h2>
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-stone-500">
+          Start med en af boksene ovenfor, så tilpasser formularen sig automatisk til din henvendelse.
+        </p>
+      </div>
+    );
+  }
+  const SelectedCategoryIcon = selectedCategory.icon;
 
   return (
     <form onSubmit={handleSubmit} className="relative flex flex-col gap-5 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm shadow-stone-900/5 sm:p-8">
@@ -156,6 +174,21 @@ export function SupportForm() {
           value={company}
           onChange={(e) => setCompany(e.target.value)}
         />
+      </div>
+
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-rose-500">Kontakt teamet</p>
+        <h2 className="mt-2 text-2xl font-bold text-stone-900">Send en besked</h2>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700">
+            <SelectedCategoryIcon size={13} />
+            {selectedCategory.label}
+          </span>
+          <a href="#support-topics" className="text-xs font-semibold text-stone-500 transition hover:text-stone-900">
+            Skift kategori
+          </a>
+        </div>
+        <p className="mt-3 text-sm leading-relaxed text-stone-500">Jo mere konkret du er, jo hurtigere kan vi hjælpe.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -174,40 +207,6 @@ export function SupportForm() {
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={FIELD_LIMITS.email}
             className="mt-1.5 w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
             placeholder="din@email.dk" />
-        </div>
-      </div>
-
-      <div>
-        <label className="flex items-center gap-1.5 text-xs font-semibold text-stone-500">
-          <MessageSquare size={12} /> Kategori
-        </label>
-        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {CATEGORY_OPTIONS.map((option) => {
-            const Icon = option.icon;
-            const isActive = category === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setCategory(option.value)}
-                className={`flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition ${
-                  isActive
-                    ? 'border-rose-300 bg-rose-50 text-rose-700 ring-4 ring-rose-100'
-                    : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50'
-                }`}
-              >
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                  isActive ? 'bg-rose-100 text-rose-600' : 'bg-stone-100 text-stone-500'
-                }`}>
-                  <Icon size={16} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold">{option.label}</span>
-                  <span className="block truncate text-xs opacity-70">{option.hint}</span>
-                </span>
-              </button>
-            );
-          })}
         </div>
       </div>
 
@@ -234,15 +233,23 @@ export function SupportForm() {
             Haster
           </label>
         </div>
-        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5} maxLength={FIELD_LIMITS.message}
+        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={6} maxLength={FIELD_LIMITS.message}
           className="mt-1.5 w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
           placeholder={selectedCategory.placeholder} />
+        <p className="mt-1.5 text-right text-[11px] font-medium text-stone-400">
+          {message.length}/{FIELD_LIMITS.message}
+        </p>
       </div>
 
       {error && <p className="text-sm font-medium text-red-600">{error}</p>}
 
+      <div className="flex items-start gap-2 rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-3 text-xs leading-relaxed text-stone-600">
+        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-stone-400" />
+        <p>Vi bruger kun oplysningerne til at behandle din henvendelse og svarer på den email, du skriver her.</p>
+      </div>
+
       <button type="submit" disabled={!canSubmit || isSubmitting}
-        className="flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-40">
+        className="flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3.5 text-sm font-semibold text-white shadow-sm shadow-rose-900/15 transition hover:bg-rose-700 disabled:opacity-40">
         <Send size={15} />
         {isSubmitting ? 'Sender...' : 'Send besked'}
       </button>
