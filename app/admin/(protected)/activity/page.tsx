@@ -1,9 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Activity, Tag, Percent, BookOpen, Inbox, Milestone, ShieldCheck,
   ChevronDown, Plus, Pencil, Trash2, Reply, UserPlus, CheckCircle2, Search, X, Users,
+  ExternalLink, Filter, CalendarDays, UserRound,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
@@ -52,6 +54,25 @@ const ACTION_VERB: Record<ActivityAction, string> = {
   replied: 'besvarede',
   invited: 'inviterede',
   confirmed: 'bekræftede',
+};
+
+const ACTION_LABEL: Record<ActivityAction, string> = {
+  created: 'Oprettet',
+  updated: 'Opdateret',
+  deleted: 'Slettet',
+  replied: 'Besvaret',
+  invited: 'Inviteret',
+  confirmed: 'Bekræftet',
+};
+
+const ENTITY_LABEL: Record<ActivityEntityType, string> = {
+  price: 'Pris',
+  offer: 'Tilbud',
+  recipe: 'Opskrift',
+  ticket: 'Supportsag',
+  timeline_event: 'Tidslinje',
+  admin_user: 'Admin',
+  waitlist_signup: 'Venteliste',
 };
 
 const ACTION_ICON: Record<ActivityAction, typeof Plus> = {
@@ -125,10 +146,33 @@ function relativeTime(iso: string) {
   return new Date(iso).toLocaleDateString('da-DK', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function fullDate(iso: string) {
+  return new Date(iso).toLocaleString('da-DK', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function dateCutoff(filter: DateFilter) {
   if (filter === 'all') return null;
   const hours = filter === '24h' ? 24 : filter === '7d' ? 24 * 7 : 24 * 30;
   return Date.now() - hours * 60 * 60 * 1000;
+}
+
+function entityHref(type: ActivityEntityType) {
+  const hrefs: Record<ActivityEntityType, string> = {
+    price: '/admin/food/prices',
+    offer: '/admin/food/offers',
+    recipe: '/admin/food/recipes',
+    ticket: '/admin/tickets',
+    timeline_event: '/admin/timeline',
+    admin_user: '/admin/admins',
+    waitlist_signup: '/admin/waitlist',
+  };
+  return hrefs[type];
 }
 
 type Group = {
@@ -169,6 +213,31 @@ function describeGroup(group: Group) {
   return `${verb} ${noun}`;
 }
 
+function AuditStatCard({
+  label,
+  value,
+  detail,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  icon: typeof Activity;
+  tone: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
+      <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${tone}`}>
+        <Icon className="h-5 w-5 text-white" strokeWidth={2.2} />
+      </div>
+      <p className="mt-4 text-2xl font-bold text-stone-900 dark:text-stone-100">{value}</p>
+      <p className="text-xs font-medium text-stone-500 dark:text-stone-400">{label}</p>
+      <p className="mt-2 text-xs text-stone-400 dark:text-stone-500">{detail}</p>
+    </div>
+  );
+}
+
 export default function ActivityPage() {
   const supabase = createClient();
   const { showToast } = useToast();
@@ -205,6 +274,7 @@ export default function ActivityPage() {
   }, [fetchRows]);
 
   const actors = useMemo(() => Array.from(new Set(rows.map((r) => r.actor_name))), [rows]);
+  const sortedActors = useMemo(() => actors.toSorted((a, b) => a.localeCompare(b, 'da-DK')), [actors]);
 
   const filteredRows = useMemo(() => rows.filter((r) => {
     const q = search.trim().toLowerCase();
@@ -218,6 +288,18 @@ export default function ActivityPage() {
   }), [rows, actorFilter, entityFilter, actionFilter, dateFilter, search]);
 
   const groups = useMemo(() => groupActivity(filteredRows), [filteredRows]);
+
+  const stats = useMemo(() => {
+    const last24h = dateCutoff('24h') ?? 0;
+    const last30d = dateCutoff('30d') ?? 0;
+    return {
+      total: rows.length,
+      shown: filteredRows.length,
+      last24h: rows.filter((r) => new Date(r.created_at).getTime() >= last24h).length,
+      deletions30d: rows.filter((r) => r.action === 'deleted' && new Date(r.created_at).getTime() >= last30d).length,
+      actorCount: actors.length,
+    };
+  }, [rows, filteredRows, actors]);
 
   const hasActiveFilters =
     actorFilter !== 'all' ||
@@ -254,6 +336,13 @@ export default function ActivityPage() {
         </div>
       </div>
 
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <AuditStatCard label="Loglinjer" value={stats.total.toString()} detail={`Seneste ${FETCH_LIMIT} hændelser hentes`} icon={Activity} tone="from-sky-500 to-sky-600" />
+        <AuditStatCard label="Vises nu" value={stats.shown.toString()} detail={hasActiveFilters ? 'Efter aktive filtre' : 'Uden aktive filtre'} icon={Filter} tone="from-stone-700 to-stone-900" />
+        <AuditStatCard label="Seneste 24 timer" value={stats.last24h.toString()} detail="Nye hændelser i daglig drift" icon={CalendarDays} tone="from-emerald-500 to-emerald-600" />
+        <AuditStatCard label="Sletninger 30 dage" value={stats.deletions30d.toString()} detail={`${stats.actorCount} aktører i loggen`} icon={Trash2} tone="from-rose-500 to-rose-600" />
+      </div>
+
       <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <label className="relative flex-1">
@@ -261,12 +350,19 @@ export default function ActivityPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Søg efter admin, sag, email eller handling..."
+              placeholder="Søg efter admin, sag, audit-id eller handling..."
               className="w-full rounded-xl border border-stone-200 bg-white py-2 pl-9 pr-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100 dark:focus:ring-sky-900/30"
             />
           </label>
 
           <div className="flex flex-wrap gap-2">
+            <select value={actorFilter} onChange={(e) => setActorFilter(e.target.value)}
+              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-900 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100 dark:focus:ring-sky-900/30">
+              <option value="all">Alle admins</option>
+              {sortedActors.map((actor) => (
+                <option key={actor} value={actor}>{actor}</option>
+              ))}
+            </select>
             <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value as ActivityEntityType | 'all')}
               className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-900 outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100 dark:focus:ring-sky-900/30">
               {ENTITY_FILTERS.map((option) => (
@@ -296,16 +392,18 @@ export default function ActivityPage() {
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button onClick={() => setActorFilter('all')}
-          className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${actorFilter === 'all' ? 'bg-stone-900 text-white dark:bg-stone-700' : 'border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800'}`}>
-          Alle
-        </button>
-        {actors.map((a) => (
-          <button key={a} onClick={() => setActorFilter(a)}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${actorFilter === a ? 'bg-stone-900 text-white dark:bg-stone-700' : 'border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800'}`}>
-            {a}
-          </button>
-        ))}
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-xs font-semibold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+            <UserRound size={12} />
+            {actorFilter === 'all' ? 'Alle admins' : actorFilter}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-xs font-semibold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+            <Filter size={12} />
+            {entityFilter === 'all' ? 'Alle typer' : ENTITY_LABEL[entityFilter]}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-xs font-semibold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+            <CalendarDays size={12} />
+            {DATE_FILTERS.find((option) => option.value === dateFilter)?.label ?? 'Al tid'}
+          </span>
           <span className="ml-auto text-xs font-medium text-stone-400 dark:text-stone-500">
             Viser {filteredRows.length} af {rows.length} seneste loglinjer
           </span>
@@ -331,6 +429,7 @@ export default function ActivityPage() {
             const isExpanded = expandedGroups.has(group.key);
             const isMulti = group.items.length > 1;
             const latest = group.items[0];
+            const href = entityHref(group.entityType);
 
             return (
               <div key={group.key} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
@@ -346,16 +445,32 @@ export default function ActivityPage() {
                       <span className={`ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full ${ACTION_STYLE[group.action]}`}>
                         <ActionIcon size={11} />
                       </span>
+                      <span className="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+                        {ACTION_LABEL[group.action]}
+                      </span>
+                      <span className="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+                        {ENTITY_LABEL[group.entityType]}
+                      </span>
                     </div>
 
                     {!isMulti && (
-                      <p className="mt-0.5 flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400">
+                      <p className="mt-1 flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400">
                         <EntityIcon size={12} />
                         {latest.entity_label}
                       </p>
                     )}
 
-                    <p className="mt-1 text-xs text-stone-400 dark:text-stone-500">{relativeTime(latest.created_at)}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-400 dark:text-stone-500">
+                      <span>{relativeTime(latest.created_at)}</span>
+                      <span>{fullDate(latest.created_at)}</span>
+                      {latest.entity_id && (
+                        <span className="font-mono text-[11px]">id {latest.entity_id.slice(0, 8)}</span>
+                      )}
+                      <Link href={href} className="inline-flex items-center gap-1 font-semibold text-sky-600 hover:underline dark:text-sky-400">
+                        Åbn område
+                        <ExternalLink size={11} />
+                      </Link>
+                    </div>
 
                     {isMulti && (
                       <button onClick={() => toggleExpanded(group.key)}
@@ -368,9 +483,12 @@ export default function ActivityPage() {
                     {isMulti && isExpanded && (
                       <ul className="mt-2 flex flex-col gap-1 border-l-2 border-stone-100 pl-3 dark:border-stone-800">
                         {group.items.map((item) => (
-                          <li key={item.id} className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400">
-                            <EntityIcon size={11} />
-                            {item.entity_label}
+                          <li key={item.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-500 dark:text-stone-400">
+                            <span className="inline-flex items-center gap-1.5">
+                              <EntityIcon size={11} />
+                              {item.entity_label}
+                            </span>
+                            <span className="text-stone-400 dark:text-stone-500">{fullDate(item.created_at)}</span>
                           </li>
                         ))}
                       </ul>
