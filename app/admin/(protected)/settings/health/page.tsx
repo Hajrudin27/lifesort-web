@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Clock3,
   Database,
+  ImageIcon,
   MailCheck,
   ServerCog,
   ShieldCheck,
@@ -157,6 +158,7 @@ export default async function EnvironmentHealthPage() {
   let supabaseLive: Check;
   let databaseChecks: Check[] = [];
   let contentChecks: Check[] = [];
+  let storageChecks: Check[] = [];
   try {
     const supabase = await createClient();
     const { error } = await supabase.from('admin_users').select('id', { count: 'exact', head: true });
@@ -170,9 +172,12 @@ export default async function EnvironmentHealthPage() {
         supportSchema,
         waitlistSchema,
         activitySchema,
+        productsSchema,
+        recipeImagesBucket,
         waitlistCount,
         ticketsCount,
         recipesCount,
+        productsCount,
         pricesCount,
         conditionsCount,
         symptomsCount,
@@ -180,9 +185,12 @@ export default async function EnvironmentHealthPage() {
         admin.from('support_tickets').select('id, status, priority, category, internal_note, updated_at').limit(1),
         admin.from('waitlist_signups').select('id, email, platform, confirmed, confirm_token, created_at').limit(1),
         admin.from('activity_log').select('id, entity_id, entity_type, entity_label').limit(1),
+        admin.from('products').select('id, name, created_at').limit(1),
+        admin.storage.getBucket('recipe-images'),
         admin.from('waitlist_signups').select('id', { count: 'exact', head: true }),
         admin.from('support_tickets').select('id', { count: 'exact', head: true }),
         admin.from('global_recipes').select('id', { count: 'exact', head: true }),
+        admin.from('products').select('id', { count: 'exact', head: true }),
         admin.from('global_standard_prices').select('id', { count: 'exact', head: true }),
         admin.from('health_conditions').select('id', { count: 'exact', head: true }),
         admin.from('symptom_glossary').select('id', { count: 'exact', head: true }),
@@ -207,12 +215,35 @@ export default async function EnvironmentHealthPage() {
           'entity_id kan bruges til historik på konkrete sager',
           activitySchema.error?.message ?? 'Aktivitetslog-schema kunne ikke tjekkes'
         ),
+        boolCheck(
+          'Varer-schema',
+          !productsSchema.error,
+          'Produkter kan kobles til standardpriser og CSV-import',
+          productsSchema.error?.message ?? 'Varer-schema kunne ikke tjekkes'
+        ),
+      ];
+
+      storageChecks = [
+        recipeImagesBucket.error
+          ? {
+              label: 'Opskriftsbilleder',
+              status: 'missing',
+              detail: `Storage bucket recipe-images mangler eller kan ikke læses: ${recipeImagesBucket.error.message}`,
+            }
+          : {
+              label: 'Opskriftsbilleder',
+              status: recipeImagesBucket.data.public ? 'ok' : 'warning',
+              detail: recipeImagesBucket.data.public
+                ? 'recipe-images bucket findes og er public, så billed-URLs kan vises'
+                : 'recipe-images bucket findes, men er privat. Upload virker måske, men billeder kan ikke vises via public URL.',
+            },
       ];
 
       contentChecks = [
         countCheck('Venteliste', waitlistCount.count),
         countCheck('Supportsager', ticketsCount.count, 0),
         countCheck('Opskrifter', recipesCount.count, 5),
+        countCheck('Varer', productsCount.count, 20),
         countCheck('Standardpriser', pricesCount.count, 20),
         countCheck('Sundhedstilstande', conditionsCount.count, 3),
         countCheck('Symptomordbog', symptomsCount.count, 3),
@@ -221,6 +252,9 @@ export default async function EnvironmentHealthPage() {
       databaseChecks = [
         { label: 'Service role schema-tjek', status: 'missing', detail: 'SUPABASE_SERVICE_ROLE_KEY eller URL mangler' },
       ];
+      storageChecks = [
+        { label: 'Opskriftsbilleder', status: 'missing', detail: 'SUPABASE_SERVICE_ROLE_KEY eller URL mangler' },
+      ];
     }
   } catch (err) {
     supabaseLive = {
@@ -228,6 +262,9 @@ export default async function EnvironmentHealthPage() {
       status: 'missing',
       detail: err instanceof Error ? err.message : 'Ukendt fejl',
     };
+    storageChecks = [
+      { label: 'Opskriftsbilleder', status: 'missing', detail: 'Storage kunne ikke tjekkes, fordi Supabase-forbindelsen fejlede' },
+    ];
   }
   envChecks.splice(3, 0, supabaseLive);
 
@@ -276,6 +313,12 @@ export default async function EnvironmentHealthPage() {
       description: 'Datagrundlag for hjemmeside, launch og admin',
       icon: Table2,
       checks: contentChecks,
+    },
+    {
+      title: 'Storage',
+      description: 'Buckets og filadgang til admin-indhold',
+      icon: ImageIcon,
+      checks: storageChecks,
     },
     {
       title: 'Automatik',
