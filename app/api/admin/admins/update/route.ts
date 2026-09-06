@@ -3,6 +3,7 @@ import { captureDatabaseError } from '@/lib/observability';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdmin, isAdminRole, type AdminRole } from '@/lib/admin-auth';
 import { OWNER_ONLY } from '@/lib/admin-roles';
+import { readJsonBody } from '@/lib/validation';
 import { logActivity } from '@/lib/activity-log';
 
 type AdminUserRow = {
@@ -45,14 +46,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  let body: ManageAdminBody;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Ugyldig anmodning' }, { status: 400 });
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) {
+    return NextResponse.json({ error: parsedBody.error }, { status: parsedBody.status });
   }
 
-  const { id, action, role } = body;
+  const { id, action, role } = (parsedBody.data ?? {}) as ManageAdminBody;
   if (typeof id !== 'string' || id.trim().length === 0) {
     return NextResponse.json({ error: 'Admin-id mangler' }, { status: 400 });
   }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { captureDatabaseError } from '@/lib/observability';
 import { logActivity } from '@/lib/activity-log';
+import { isAuthorizedCronRequest } from '@/lib/cron-auth';
 import {
   CLOSED_TICKET_MONTHS,
   UNCONFIRMED_WAITLIST_DAYS,
@@ -30,8 +31,7 @@ export const dynamic = 'force-dynamic';
  */
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

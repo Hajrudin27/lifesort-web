@@ -5,17 +5,25 @@ import { requireAdmin } from '@/lib/admin-auth';
 import { CUSTOMER_DATA_ROLES } from '@/lib/admin-roles';
 import { logActivity } from '@/lib/activity-log';
 import { emailAuditId, maskEmail } from '@/lib/privacy';
+import { readJsonBody } from '@/lib/validation';
 
 export async function POST(request: Request) {
-  const { id } = await request.json();
-
-  if (!id || typeof id !== 'string') {
-    return NextResponse.json({ error: 'id mangler' }, { status: 400 });
-  }
-
+  // Auth først, og kroppen gennem readJsonBody. Rækkefølgen var omvendt, så en
+  // uautentificeret kalder kunne få serveren til at parse en vilkårligt stor krop, før
+  // afvisningen faldt — målt med 2 MB, der blev parset og derefter besvaret med 401.
   const auth = await requireAdmin(CUSTOMER_DATA_ROLES);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) {
+    return NextResponse.json({ error: parsedBody.error }, { status: parsedBody.status });
+  }
+  const { id } = (parsedBody.data ?? {}) as Record<string, unknown>;
+
+  if (!id || typeof id !== 'string') {
+    return NextResponse.json({ error: 'id mangler' }, { status: 400 });
   }
 
   const adminClient = createAdminClient();

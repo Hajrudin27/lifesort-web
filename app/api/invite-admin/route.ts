@@ -61,9 +61,13 @@ export async function POST(request: Request) {
     { redirectTo: `${siteUrl}/admin/dashboard` }
   );
   if (inviteError || !invited?.user) {
+    // Den rå besked fra Supabase gik tidligere med i svaret og røbede blandt andet, om
+    // adressen allerede var registreret. Ruten er owner-only, så det var en detalje — men
+    // det var den ene rute der ikke fulgte husreglen om generiske fejl udadtil. Den fulde
+    // besked ligger fortsat i Sentry, hvor den hører hjemme.
     Sentry.captureMessage(`Invite admin failed: ${inviteError?.message}`, 'warning');
     return NextResponse.json(
-      { error: inviteError?.message ?? 'Kunne ikke invitere brugeren' },
+      { error: 'Kunne ikke invitere brugeren. Tjek Sentry for detaljer.' },
       { status: 500 }
     );
   }

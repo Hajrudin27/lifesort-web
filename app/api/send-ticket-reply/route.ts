@@ -6,17 +6,25 @@ import { CUSTOMER_DATA_ROLES } from '@/lib/admin-roles';
 import { sendEmail, escapeHtml } from '@/lib/resend';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { logActivity } from '@/lib/activity-log';
+import { readJsonBody } from '@/lib/validation';
 
 export async function POST(request: Request) {
-  const { ticketId } = await request.json();
-
-  if (!ticketId || typeof ticketId !== 'string') {
-    return NextResponse.json({ error: 'ticketId mangler' }, { status: 400 });
-  }
-
+  // Auth først, og kroppen gennem readJsonBody. Rækkefølgen var omvendt, så en
+  // uautentificeret kalder kunne få serveren til at parse en vilkårligt stor krop, før
+  // afvisningen faldt — målt med 2 MB, der blev parset og derefter besvaret med 401.
   const auth = await requireAdmin(CUSTOMER_DATA_ROLES);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) {
+    return NextResponse.json({ error: parsedBody.error }, { status: parsedBody.status });
+  }
+  const { ticketId } = (parsedBody.data ?? {}) as Record<string, unknown>;
+
+  if (!ticketId || typeof ticketId !== 'string') {
+    return NextResponse.json({ error: 'ticketId mangler' }, { status: 400 });
   }
 
   // Hvert kald sender en mail fra jeres domæne. Ruten er kun for owner og support, men en

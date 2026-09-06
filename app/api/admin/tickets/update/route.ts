@@ -3,6 +3,7 @@ import { captureDatabaseError } from '@/lib/observability';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdmin } from '@/lib/admin-auth';
 import { CUSTOMER_DATA_ROLES } from '@/lib/admin-roles';
+import { readJsonBody } from '@/lib/validation';
 
 const STATUSES = ['open', 'waiting', 'answered', 'closed'] as const;
 const PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
@@ -59,8 +60,20 @@ async function logTicketActivity({
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  const { id, status, priority, category, internalNote, adminReply } = body;
+  // Auth først, og kroppen gennem readJsonBody. Rækkefølgen var omvendt, så en
+  // uautentificeret kalder kunne få serveren til at parse en vilkårligt stor krop, før
+  // afvisningen faldt — målt med 2 MB, der blev parset og derefter besvaret med 401.
+  const auth = await requireAdmin(CUSTOMER_DATA_ROLES);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) {
+    return NextResponse.json({ error: parsedBody.error }, { status: parsedBody.status });
+  }
+  const { id, status, priority, category, internalNote, adminReply } =
+    (parsedBody.data ?? {}) as Record<string, unknown>;
 
   if (!id || typeof id !== 'string') {
     return NextResponse.json({ error: 'id mangler' }, { status: 400 });
@@ -82,10 +95,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Svar mangler' }, { status: 400 });
   }
 
-  const auth = await requireAdmin(CUSTOMER_DATA_ROLES);
-  if (!auth.ok) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
   const now = new Date().toISOString();
   const needsEnhancedSchema =
     priority !== undefined || category !== undefined || internalNote !== undefined || status === 'waiting';

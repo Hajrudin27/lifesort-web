@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, getClientIp, emailKey, resetRateLimit } from '@/lib/rate-limit';
+import { readJsonBody } from '@/lib/validation';
 
 /**
  * Admin-login gik tidligere direkte fra browseren til Supabase. Vores server så derfor
@@ -21,14 +22,16 @@ const WINDOW_MS = 15 * 60 * 1000;
 const GENERIC_ERROR = 'Forkert email eller adgangskode.';
 
 export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: GENERIC_ERROR }, { status: 400 });
+  // Ruten kan ikke autentificere før den læser kroppen — den ER autentificeringen. Så meget
+  // desto vigtigere er størrelsesgrænsen her: det er det eneste offentlige endpoint hvor en
+  // uautentificeret kalder ellers kunne sende en vilkårligt stor krop gennem JSON.parse.
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) {
+    const status = parsedBody.status === 413 ? 413 : 400;
+    return NextResponse.json({ error: status === 413 ? parsedBody.error : GENERIC_ERROR }, { status });
   }
 
-  const { email, password } = (body ?? {}) as Record<string, unknown>;
+  const { email, password } = (parsedBody.data ?? {}) as Record<string, unknown>;
   if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
     return NextResponse.json({ error: GENERIC_ERROR }, { status: 400 });
   }
