@@ -38,7 +38,7 @@ const ITEMS: PaletteItem[] = [
   { label: 'Aktivitet', description: 'Log over ændringer i panelet', href: '/admin/activity', icon: Activity, keywords: ['log', 'historik', 'aktivitetslog'] },
   { label: 'Admins', description: 'Hvem har adgang til panelet', href: '/admin/admins', icon: ShieldCheck, keywords: ['brugere', 'adgang', 'inviter'] },
   { label: 'Sundhedstjek', description: 'Er miljøvariabler og Supabase sat rigtigt op?', href: '/admin/settings/health', icon: Activity, keywords: ['miljø', 'env', 'sundhed', 'system'] },
-  { label: 'Eksportér data', description: 'Download alt admin-styret indhold som JSON', href: '/admin/settings/export', icon: DatabaseBackup, keywords: ['backup', 'eksport', 'json', 'export'] },
+  { label: 'Eksportér data', description: 'Download admin-styret indhold som JSON eller CSV', href: '/admin/settings/export', icon: DatabaseBackup, keywords: ['backup', 'eksport', 'json', 'csv', 'export'] },
   { label: 'Standardpriser', description: 'Priser på tværs af butikker', href: '/admin/food/prices', icon: Tag, keywords: ['pris', 'produkt', 'butik', 'mad'] },
   { label: 'Dublet-tjek', description: 'Find mulige dubletter i prislisten', href: '/admin/food/duplicates', icon: Copy, keywords: ['dublet', 'duplicate', 'dobbelt', 'pris'] },
   { label: 'Ugens tilbud', description: 'Aktive og kommende tilbud', href: '/admin/food/offers', icon: Percent, keywords: ['tilbud', 'rabat', 'mad'] },

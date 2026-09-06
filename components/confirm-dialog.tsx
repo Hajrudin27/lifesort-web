@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
-type ConfirmOptions = { title: string; message: string };
+type ConfirmOptions = { title: string; message: string; confirmLabel?: string };
 
 const ConfirmContext = createContext<{
   confirm: (options: ConfirmOptions) => Promise<boolean>;
@@ -48,7 +48,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                 Annullér
               </button>
               <button onClick={() => handle(true)} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">
-                Slet
+                {state.options.confirmLabel ?? 'Slet'}
               </button>
             </div>
           </div>
@@ -56,4 +56,4 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       )}
     </ConfirmContext.Provider>
   );
-}   
+}
