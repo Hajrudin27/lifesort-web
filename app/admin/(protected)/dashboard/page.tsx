@@ -1,5 +1,23 @@
 import Link from 'next/link';
-import { Tag, Percent, BookOpen, Store, Inbox, Milestone, Activity, ArrowRight, AlertTriangle, TrendingUp } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  BookOpen,
+  Clock3,
+  Database,
+  HeartPulse,
+  Inbox,
+  MailCheck,
+  Milestone,
+  Percent,
+  Rocket,
+  ShieldCheck,
+  Store,
+  Tag,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { requireAdmin } from '@/lib/admin-auth';
 import { CONTENT_ROLES, CUSTOMER_DATA_ROLES } from '@/lib/admin-roles';
@@ -67,7 +85,80 @@ const ACTION_VERB: Record<string, string> = {
   deleted: 'slettede',
   replied: 'besvarede',
   invited: 'inviterede',
+  confirmed: 'bekræftede',
 };
+
+function taskTone(level: 'critical' | 'warning' | 'ready') {
+  if (level === 'critical') return 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400';
+  if (level === 'warning') return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400';
+  return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400';
+}
+
+function TaskCard({
+  title,
+  detail,
+  href,
+  cta,
+  level,
+  icon: Icon,
+}: {
+  title: string;
+  detail: string;
+  href: string;
+  cta: string;
+  level: 'critical' | 'warning' | 'ready';
+  icon: typeof Inbox;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5 transition hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md dark:border-stone-800 dark:bg-stone-900 dark:hover:border-stone-700"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${taskTone(level)}`}>
+          <Icon className="h-5 w-5" strokeWidth={2.2} />
+        </div>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${taskTone(level)}`}>
+          {level === 'critical' ? 'Nu' : level === 'warning' ? 'Tjek' : 'Klar'}
+        </span>
+      </div>
+      <p className="mt-4 text-sm font-bold text-stone-900 dark:text-stone-100">{title}</p>
+      <p className="mt-1 min-h-10 text-xs leading-relaxed text-stone-500 dark:text-stone-400">{detail}</p>
+      <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-stone-500 transition group-hover:text-stone-900 dark:text-stone-400 dark:group-hover:text-stone-100">
+        {cta}
+        <ArrowRight size={12} />
+      </span>
+    </Link>
+  );
+}
+
+function QuickLink({
+  label,
+  detail,
+  href,
+  icon: Icon,
+}: {
+  label: string;
+  detail: string;
+  href: string;
+  icon: typeof Inbox;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white p-3 transition hover:border-stone-300 hover:bg-stone-50 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-stone-700 dark:hover:bg-stone-800"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+        <Icon size={16} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-stone-900 dark:text-stone-100">{label}</span>
+        <span className="block truncate text-xs text-stone-500 dark:text-stone-400">{detail}</span>
+      </span>
+      <ArrowRight size={14} className="text-stone-400" />
+    </Link>
+  );
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -82,13 +173,19 @@ export default async function DashboardPage() {
 
   const [
     pricesCount, offersCount, recipesCount, storesResult, openTicketsCount,
-    upcomingDeadlines, recentActivity, ticketSeries, waitlistSeries,
+    waitingTicketsCount, urgentTicketsCount, pendingWaitlistCount, unconfirmedWaitlist30d,
+    overdueDeadlinesCount, upcomingDeadlines, recentActivity, ticketSeries, waitlistSeries,
   ] = await Promise.all([
     supabase.from('global_standard_prices').select('id', { count: 'exact', head: true }),
     supabase.from('global_offers').select('id', { count: 'exact', head: true }),
     supabase.from('global_recipes').select('id', { count: 'exact', head: true }),
     supabase.from('global_standard_prices').select('store'),
     supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('status', 'open'),
+    supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('status', 'waiting'),
+    supabase.from('support_tickets').select('id', { count: 'exact', head: true }).in('priority', ['high', 'urgent']).neq('status', 'closed'),
+    supabase.from('waitlist_signups').select('id', { count: 'exact', head: true }).eq('confirmed', false),
+    supabase.from('waitlist_signups').select('id', { count: 'exact', head: true }).eq('confirmed', false).lt('created_at', daysAgoIso(30)),
+    supabase.from('timeline_events').select('id', { count: 'exact', head: true }).neq('status', 'done').lt('event_date', todayStr()),
     supabase.from('timeline_events').select('id, title, event_date, owner').neq('status', 'done')
       .order('event_date', { ascending: true }).limit(4),
     supabase.from('activity_log').select('id, actor_name, action, entity_type, entity_label, created_at')
@@ -99,6 +196,18 @@ export default async function DashboardPage() {
 
   const uniqueStores = new Set((storesResult.data ?? []).map((r) => r.store)).size;
   const chartData = buildDailySeries(ticketSeries.data ?? [], waitlistSeries.data ?? []);
+  const openTickets = openTicketsCount.count ?? 0;
+  const waitingTickets = waitingTicketsCount.count ?? 0;
+  const urgentTickets = urgentTicketsCount.count ?? 0;
+  const pendingWaitlist = pendingWaitlistCount.count ?? 0;
+  const staleWaitlist = unconfirmedWaitlist30d.count ?? 0;
+  const overdueDeadlines = overdueDeadlinesCount.count ?? 0;
+  const needsLaunchAttention = role === 'owner' && (
+    !process.env.CRON_SECRET ||
+    !process.env.RESEND_API_KEY ||
+    !process.env.RESEND_FROM_EMAIL ||
+    !process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
 
   const stats = [
     { label: 'Standardpriser', value: pricesCount.count ?? 0, icon: Tag, color: 'from-rose-500 to-rose-600' },
@@ -106,7 +215,69 @@ export default async function DashboardPage() {
     { label: 'Opskrifter', value: recipesCount.count ?? 0, icon: BookOpen, color: 'from-amber-500 to-amber-600' },
     { label: 'Butikker', value: uniqueStores, icon: Store, color: 'from-sky-500 to-sky-600' },
     ...(canSeeCustomerData
-      ? [{ label: 'Åbne supportsager', value: openTicketsCount.count ?? 0, icon: Inbox, color: 'from-stone-600 to-stone-700' }]
+      ? [{ label: 'Åbne supportsager', value: openTickets, icon: Inbox, color: 'from-stone-600 to-stone-700' }]
+      : []),
+  ];
+
+  const priorityTasks = [
+    ...(canSeeCustomerData
+      ? [
+          {
+            title: urgentTickets > 0 ? `${urgentTickets} supportsager haster` : openTickets > 0 ? `${openTickets} åbne supportsager` : 'Support-indbakken er rolig',
+            detail:
+              urgentTickets > 0
+                ? `${waitingTickets} sager venter på bruger. Start med de høje prioriteter.`
+                : openTickets > 0
+                  ? `${waitingTickets} sager venter på bruger. Hold svartiden nede.`
+                  : 'Ingen åbne supportsager kræver handling lige nu.',
+            href: '/admin/tickets',
+            cta: urgentTickets > 0 || openTickets > 0 ? 'Åbn supportsager' : 'Se indbakke',
+            level: urgentTickets > 0 ? 'critical' as const : openTickets > 0 ? 'warning' as const : 'ready' as const,
+            icon: Inbox,
+          },
+          {
+            title: pendingWaitlist > 0 ? `${pendingWaitlist} ubekræftede tilmeldinger` : 'Ventelisten er afklaret',
+            detail:
+              staleWaitlist > 0
+                ? `${staleWaitlist} er ældre end 30 dage og bliver fanget af data-retention.`
+                : pendingWaitlist > 0
+                  ? 'Der er tilmeldinger, som endnu ikke har bekræftet email.'
+                  : 'Alle hentede ventelisteposter er bekræftede.',
+            href: '/admin/waitlist',
+            cta: pendingWaitlist > 0 ? 'Gennemgå venteliste' : 'Se venteliste',
+            level: staleWaitlist > 0 ? 'warning' as const : 'ready' as const,
+            icon: Users,
+          },
+        ]
+      : []),
+    ...(canEditContent
+      ? [
+          {
+            title: overdueDeadlines > 0 ? `${overdueDeadlines} deadlines er overskredet` : 'Tidslinjen er på sporet',
+            detail:
+              overdueDeadlines > 0
+                ? 'Der ligger åbne projektpunkter med datoer før i dag.'
+                : 'Ingen åbne deadlines er markeret som forsinkede.',
+            href: '/admin/timeline',
+            cta: overdueDeadlines > 0 ? 'Ryd op i tidslinje' : 'Se tidslinje',
+            level: overdueDeadlines > 0 ? 'critical' as const : 'ready' as const,
+            icon: Milestone,
+          },
+        ]
+      : []),
+    ...(role === 'owner'
+      ? [
+          {
+            title: needsLaunchAttention ? 'Launch-check kræver tjek' : 'Launch-check er klar',
+            detail: needsLaunchAttention
+              ? 'Et eller flere driftspunkter mangler env eller email-opsætning.'
+              : 'De vigtigste launch-nøgler er sat i miljøet.',
+            href: needsLaunchAttention ? '/admin/settings/health' : '/admin/launch',
+            cta: needsLaunchAttention ? 'Åbn sundhedstjek' : 'Åbn launch',
+            level: needsLaunchAttention ? 'warning' as const : 'ready' as const,
+            icon: needsLaunchAttention ? ShieldCheck : Rocket,
+          },
+        ]
       : []),
   ];
 
@@ -114,8 +285,16 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Oversigt</h1>
-      <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">Velkommen til LifeSort Admin.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Oversigt</h1>
+          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">Velkommen til LifeSort Admin.</p>
+        </div>
+        <div className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-500 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400">
+          <Clock3 size={14} />
+          {new Date().toLocaleString('da-DK', { dateStyle: 'medium', timeStyle: 'short' })}
+        </div>
+      </div>
 
       <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((stat) => (
@@ -133,6 +312,32 @@ export default async function DashboardPage() {
           </div>
         ))}
       </div>
+
+      <section className="mt-6">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} className="text-stone-500 dark:text-stone-400" />
+            <h2 className="text-sm font-bold text-stone-900 dark:text-stone-100">Prioritet lige nu</h2>
+          </div>
+          <span className="text-xs font-medium text-stone-400 dark:text-stone-500">
+            {priorityTasks.filter((task) => task.level !== 'ready').length} kræver opmærksomhed
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+          {priorityTasks.map((task) => (
+            <TaskCard key={task.title} {...task} />
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-4">
+        {role === 'owner' && <QuickLink label="Launch" detail="Website-klarhed og go-live punkter" href="/admin/launch" icon={Rocket} />}
+        {role === 'owner' && <QuickLink label="Sundhedstjek" detail="Env, database, storage og automatik" href="/admin/settings/health" icon={HeartPulse} />}
+        {canSeeCustomerData && <QuickLink label="Support" detail={`${openTickets} åbne · ${urgentTickets} høje prioriteter`} href="/admin/tickets" icon={Inbox} />}
+        {canSeeCustomerData && <QuickLink label="Venteliste" detail={`${pendingWaitlist} mangler bekræftelse`} href="/admin/waitlist" icon={MailCheck} />}
+        {canEditContent && <QuickLink label="Madindhold" detail={`${recipesCount.count ?? 0} opskrifter · ${pricesCount.count ?? 0} priser`} href="/admin/food/recipes" icon={BookOpen} />}
+        {canEditContent && <QuickLink label="Data" detail="Priser, tilbud og dubletter" href="/admin/food/prices" icon={Database} />}
+      </section>
 
       {canSeeCustomerData && (
       <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
