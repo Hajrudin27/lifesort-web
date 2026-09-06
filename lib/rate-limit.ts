@@ -1,48 +1,81 @@
-type Entry = { count: number; resetAt: number };
-
-const store = new Map<string, Entry>();
-let callsSinceCleanup = 0;
+import { createAdminClient } from '@/lib/supabase/admin';
+import { captureDatabaseError } from '@/lib/observability';
 
 /**
- * In-memory sliding-window-ish rate limiter. Good enough for a low-traffic
- * site or a single-instance deployment.
+ * Rate limiting med en tæller alle instanser deler.
  *
- * IMPORTANT: on serverless platforms (Vercel, etc.) each function instance
- * has its own memory, so this does NOT share state across concurrent
- * instances or regions — a determined attacker distributed across many
- * invocations could get around it. If abuse becomes a real problem after
- * launch, swap this for @upstash/ratelimit (Redis-backed, works correctly
- * across serverless instances) — same call signature, just backed by a
- * shared store instead of this Map.
+ * Tidligere lå tællerne i en Map i hukommelsen. På Vercel har hver lambda-instans sin egen,
+ * så "5 forsøg pr. kvarter" i praksis var 5 forsøg pr. instans — og instanser skaleres med
+ * samtidighed, så parallelle kald gav et mangefold. En kold start nulstillede den også.
+ * Grænsen så altså strengere ud, end den var, hvilket er værre end ingen grænse, fordi man
+ * regner med den.
+ *
+ * Optællingen ligger nu i databasen som ét atomisk statement (se
+ * 20260907140000_shared_rate_limit_store.sql). Det koster en rundtur pr. kald — en pris det
+ * er værd at betale på de håndfulde offentlige endpoints der bruger den.
  */
-export function checkRateLimit(
+
+export type RateLimitResult = { allowed: boolean; remaining: number };
+
+/** PostgREST svarer PGRST202, når en RPC ikke findes i schema-cachen. */
+function isMissingFunction(error: { code?: string | null } | null): boolean {
+  return error?.code === 'PGRST202';
+}
+
+/**
+ * Fejler LUKKET. Kan tælleren ikke læses, afvises kaldet.
+ *
+ * Overvejelsen: fejler den åbent, kan enhver der kan fremkalde en databasefejl omgå
+ * grænsen helt — og det er netop brute force mod admin-login, grænsen er der for. Prisen er
+ * lav, for alle ruter der bruger den, skal alligevel bruge den samme database et øjeblik
+ * senere. Er Supabase nede, virker de ikke uanset hvad.
+ */
+export async function checkRateLimit(
   key: string,
   limit: number,
   windowMs: number
-): { allowed: boolean; remaining: number } {
-  const now = Date.now();
+): Promise<RateLimitResult> {
+  const supabase = createAdminClient();
 
-  // Opportunistic cleanup so the Map doesn't grow forever.
-  callsSinceCleanup++;
-  if (callsSinceCleanup > 500) {
-    callsSinceCleanup = 0;
-    for (const [k, v] of store) {
-      if (v.resetAt < now) store.delete(k);
+  const { data, error } = await supabase
+    .rpc('check_rate_limit', { p_key: key, p_limit: limit, p_window_ms: windowMs })
+    .maybeSingle<RateLimitResult>();
+
+  if (error || !data) {
+    captureDatabaseError(error ?? new Error('check_rate_limit gav intet svar'), {
+      route: 'rate-limit',
+      extra: { limitKeyPrefix: key.split(':')[0] },
+    });
+
+    // Ét tilfælde fejler bevidst ÅBENT: funktionen findes slet ikke. PostgREST svarer
+    // PGRST202, og det sker kun i ét scenarie — koden er deployet før migrationen er kørt.
+    // Uden denne undtagelse ville netop det deploy afvise hver eneste henvendelse på
+    // supportformularen og ventelisten, indtil nogen opdagede det. En angriber kan ikke
+    // fremkalde tilstanden, for det kræver at kunne fjerne funktionen fra databasen.
+    // Fejlen står i Sentry, og enhver ANDEN fejl fejler fortsat lukket.
+    if (isMissingFunction(error)) {
+      return { allowed: true, remaining: limit };
     }
-  }
 
-  const entry = store.get(key);
-  if (!entry || entry.resetAt < now) {
-    store.set(key, { count: 1, resetAt: now + windowMs });
-    return { allowed: true, remaining: limit - 1 };
-  }
-
-  if (entry.count >= limit) {
     return { allowed: false, remaining: 0 };
   }
 
-  entry.count++;
-  return { allowed: true, remaining: limit - entry.count };
+  return { allowed: data.allowed, remaining: data.remaining };
+}
+
+/**
+ * Nulstiller en tæller. Bruges efter et vellykket login: en admin der taster forkert et par
+ * gange og så rammer rigtigt, skal ikke gå rundt med et næsten opbrugt budget resten af
+ * vinduet. Det svækker ikke beskyttelsen — for at nulstille skal man kende adgangskoden.
+ *
+ * En fejl her må ikke vælte et login der ellers lykkedes, så den logges og sluges.
+ */
+export async function resetRateLimit(key: string): Promise<void> {
+  const supabase = createAdminClient();
+  const { error } = await supabase.rpc('reset_rate_limit', { p_key: key });
+  if (error) {
+    captureDatabaseError(error, { route: 'rate-limit-reset' });
+  }
 }
 
 /**
@@ -70,15 +103,6 @@ export function getClientIp(request: Request): string {
   if (realIp) return realIp;
 
   return 'unknown';
-}
-
-/**
- * Nulstiller en tæller. Bruges efter et vellykket login: en admin der taster forkert et par
- * gange og så rammer rigtigt, skal ikke gå rundt med et næsten opbrugt budget resten af
- * vinduet. Det svækker ikke beskyttelsen — for at nulstille skal man kende adgangskoden.
- */
-export function resetRateLimit(key: string): void {
-  store.delete(key);
 }
 
 /** Normaliseret nøgle, så Foo@Bar.dk og foo@bar.dk ikke får hver sin bucket. */

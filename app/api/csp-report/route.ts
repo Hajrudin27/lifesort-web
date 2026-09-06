@@ -18,7 +18,7 @@ type CspReport = {
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
-  const { allowed } = checkRateLimit(`csp-report:${ip}`, 20, 60 * 60 * 1000);
+  const { allowed } = await checkRateLimit(`csp-report:${ip}`, 20, 60 * 60 * 1000);
   if (!allowed) return new NextResponse(null, { status: 204 });
 
   let raw: string;

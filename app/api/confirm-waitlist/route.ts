@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   // Endpointet er offentligt og slår op i databasen ved hvert kald. En rigtig bruger
   // klikker linket én gang; grænsen er sat højt nok til at et par genklik og en
   // mail-klients forhåndshentning går fri.
-  const { allowed } = checkRateLimit(`confirm-waitlist:${getClientIp(request)}`, 20, 60 * 60 * 1000);
+  const { allowed } = await checkRateLimit(`confirm-waitlist:${getClientIp(request)}`, 20, 60 * 60 * 1000);
   if (!allowed) {
     return NextResponse.redirect(`${siteUrl}/waitlist-confirmed?status=error`);
   }

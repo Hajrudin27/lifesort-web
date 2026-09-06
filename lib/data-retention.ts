@@ -153,3 +153,21 @@ export async function sweepOrphanedAttachments(supabase: AdminClient) {
 
   return { removed: paths.length, failed: false };
 }
+
+/**
+ * Rydder udløbne rate limit-tællere.
+ *
+ * Tabellen får én række pr. IP og emailadresse der rammer et begrænset endpoint, og
+ * rækkerne har ingen værdi efter vinduet er udløbet. Uden denne oprydning vokser den for
+ * altid — og indeholder samtidig persondata i form af IP- og emailadresser i nøglerne.
+ */
+export async function purgeExpiredRateLimits(supabase: AdminClient): Promise<{ removed: number; failed: boolean }> {
+  const { data, error } = await supabase.rpc('purge_expired_rate_limits');
+
+  if (error) {
+    captureDatabaseError(error, { route: 'cron-data-retention-rate-limits' });
+    return { removed: 0, failed: true };
+  }
+
+  return { removed: typeof data === 'number' ? data : 0, failed: false };
+}

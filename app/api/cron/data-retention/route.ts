@@ -8,6 +8,7 @@ import {
   UNCONFIRMED_WAITLIST_DAYS,
   dataRetentionCutoffs,
   getDataRetentionPreview,
+  purgeExpiredRateLimits,
   sweepOrphanedAttachments,
 } from '@/lib/data-retention';
 
@@ -99,17 +100,24 @@ export async function GET(request: Request) {
 
   const orphaned = await sweepOrphanedAttachments(supabase);
 
+  // Rate limit-tællerne er ikke persondata vi har lovet at gemme, men nøglerne indeholder
+  // IP- og emailadresser, og rækkerne er værdiløse når vinduet er udløbet. De ryddes her,
+  // så tabellen ikke vokser i det uendelige.
+  const rateLimits = await purgeExpiredRateLimits(supabase);
+
   return NextResponse.json({
     ok: true,
     deleted: {
       tickets: ticketCount,
       waitlistSignups: signupCount,
       orphanedAttachments: orphaned.removed,
+      expiredRateLimits: rateLimits.removed,
     },
     failed: {
       tickets: Boolean(ticketError),
       waitlistSignups: Boolean(waitlistError),
       orphanedAttachments: orphaned.failed,
+      expiredRateLimits: rateLimits.failed,
     },
   });
 }

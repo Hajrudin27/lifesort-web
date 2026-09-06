@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
   // Nøglet på den kaldende admin, ikke på IP: kalderen er allerede autentificeret, og
   // IP-headeren kan spoofes.
-  const { allowed } = checkRateLimit(`invite-admin:${admin.id}`, 5, 60 * 60 * 1000);
+  const { allowed } = await checkRateLimit(`invite-admin:${admin.id}`, 5, 60 * 60 * 1000);
   if (!allowed) {
     return NextResponse.json(
       { error: 'For mange invitationer på kort tid. Prøv igen om lidt.' },

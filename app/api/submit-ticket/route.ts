@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   if (!cleanMessage.ok) return NextResponse.json({ error: cleanMessage.error }, { status: 400 });
 
   const ip = getClientIp(request);
-  const { allowed } = checkRateLimit(`ticket:${ip}`, 5, 15 * 60 * 1000); // 5 per 15 min
+  const { allowed } = await checkRateLimit(`ticket:${ip}`, 5, 15 * 60 * 1000); // 5 per 15 min
   if (!allowed) {
     return NextResponse.json(
       { error: 'For mange henvendelser. Prøv igen om lidt.' },
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   // Kvitteringsmailen sendes til den adresse, afsenderen selv skriver. Uden en grænse pr.
   // adresse kan formularen bruges til at bombardere en tredjepart med mails fra vores
   // domæne — en IP-grænse alene stopper det ikke, hvis afsenderen skifter IP.
-  const { allowed: emailAllowed } = checkRateLimit(emailKey('ticket-email', cleanFrom.value), 3, 60 * 60 * 1000);
+  const { allowed: emailAllowed } = await checkRateLimit(emailKey('ticket-email', cleanFrom.value), 3, 60 * 60 * 1000);
   if (!emailAllowed) {
     return NextResponse.json(
       { error: 'For mange henvendelser fra denne email. Prøv igen senere.' },

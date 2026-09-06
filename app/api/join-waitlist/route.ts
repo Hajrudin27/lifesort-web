@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   const cleanEmailValue = validEmail.value;
 
   const ip = getClientIp(request);
-  const { allowed } = checkRateLimit(`waitlist:${ip}`, 8, 15 * 60 * 1000); // 8 per 15 min
+  const { allowed } = await checkRateLimit(`waitlist:${ip}`, 8, 15 * 60 * 1000); // 8 per 15 min
   if (!allowed) {
     return NextResponse.json(
       { error: 'For mange forsøg. Prøv igen om lidt.' },
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   }
 
   // Samme grund som i submit-ticket: bekræftelsesmailen går til den indtastede adresse.
-  const { allowed: emailAllowed } = checkRateLimit(emailKey('waitlist-email', cleanEmailValue), 3, 60 * 60 * 1000);
+  const { allowed: emailAllowed } = await checkRateLimit(emailKey('waitlist-email', cleanEmailValue), 3, 60 * 60 * 1000);
   if (!emailAllowed) {
     return NextResponse.json({ ok: true });
   }

@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   // Hvert kald sender en mail fra jeres domæne. Ruten er kun for owner og support, men en
   // kapret session skal ikke kunne bruges som afsendermaskine — og en fejl i UI'et skal
   // ikke kunne sende det samme svar hundrede gange.
-  const { allowed } = checkRateLimit(`ticket-reply:${auth.admin.id}`, 30, 60 * 60 * 1000);
+  const { allowed } = await checkRateLimit(`ticket-reply:${auth.admin.id}`, 30, 60 * 60 * 1000);
   if (!allowed) {
     return NextResponse.json(
       { error: 'For mange svar sendt på kort tid. Prøv igen om lidt.' },

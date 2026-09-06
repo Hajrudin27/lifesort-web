@@ -38,8 +38,10 @@ export async function POST(request: Request) {
 
   const ip = getClientIp(request);
   const accountKey = emailKey('login-account', email);
-  const ipLimit = checkRateLimit(`login-ip:${ip}`, MAX_ATTEMPTS_PER_IP, WINDOW_MS);
-  const accountLimit = checkRateLimit(accountKey, MAX_ATTEMPTS_PER_ACCOUNT, WINDOW_MS);
+  // Begge tælles op, også når den første allerede er opbrugt: ellers ville et spærret
+  // IP skjule forsøgene mod selve kontoen.
+  const ipLimit = await checkRateLimit(`login-ip:${ip}`, MAX_ATTEMPTS_PER_IP, WINDOW_MS);
+  const accountLimit = await checkRateLimit(accountKey, MAX_ATTEMPTS_PER_ACCOUNT, WINDOW_MS);
 
   if (!ipLimit.allowed || !accountLimit.allowed) {
     return NextResponse.json(
@@ -72,6 +74,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Denne konto har ikke admin-adgang.' }, { status: 403 });
   }
 
-  resetRateLimit(accountKey);
+  await resetRateLimit(accountKey);
   return NextResponse.json({ ok: true });
 }
