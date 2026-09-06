@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { BookOpen, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, X, Clock, ImagePlus, Loader2, Square, CheckSquare, History } from 'lucide-react';
+import { BookOpen, Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, X, Clock, ImagePlus, Loader2, Square, CheckSquare, History, Copy } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
 import { logActivity } from '@/lib/activity-log';
@@ -143,6 +143,26 @@ export default function RecipesPage() {
   };
 
   const startNew = () => { resetForm(); setShowForm(true); };
+
+  const startDuplicate = (row: RecipeRow) => {
+    setEditingId(null);
+    setName(`Kopi af ${row.name}`);
+    setMealType(row.meal_type);
+    setIngredients(row.ingredients.length > 0 ? row.ingredients.map((ingredient) => ({ ...ingredient })) : [emptyIngredient()]);
+    setMinutes(row.minutes?.toString() ?? '');
+    setInstructions(row.instructions ?? '');
+    setCalories(row.calories?.toString() ?? '');
+    setProtein(row.protein?.toString() ?? '');
+    setCarbs(row.carbs?.toString() ?? '');
+    setFat(row.fat?.toString() ?? '');
+    setTagsInput(row.tags.join(', '));
+    setImageUrl(row.image_url);
+    setImageUploadMeta(null);
+    setPublished(row.published);
+    setShowForm(true);
+    setSelectedIds(new Set());
+    showToast(`"${row.name}" kopieret til en ny opskrift.`);
+  };
 
   const updateIngredient = (index: number, field: keyof Ingredient, value: string) => {
     setIngredients((prev) => prev.map((ing, i) => (i === index ? { ...ing, [field]: value } : ing)));
@@ -573,6 +593,9 @@ export default function RecipesPage() {
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => setHistoryFor({ id: row.id, name: row.name })} title="Historik" className="rounded-lg p-1.5 text-stone-500 transition hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800">
                           <History size={15} />
+                        </button>
+                        <button onClick={() => startDuplicate(row)} title="Kopiér" className="rounded-lg p-1.5 text-stone-500 transition hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800">
+                          <Copy size={15} />
                         </button>
                         <button onClick={() => startEdit(row)} title="Redigér" className="rounded-lg p-1.5 text-stone-500 transition hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800">
                           <Pencil size={15} />
