@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { checkRateLimit, getClientIp, emailKey } from '@/lib/rate-limit';
 import { sendEmail, escapeHtml } from '@/lib/resend';
 
 const CATEGORIES = ['general', 'bug', 'billing', 'feature', 'account'] as const;
@@ -54,6 +54,17 @@ export async function POST(request: Request) {
   if (!allowed) {
     return NextResponse.json(
       { error: 'For mange henvendelser. Prøv igen om lidt.' },
+      { status: 429 }
+    );
+  }
+
+  // Kvitteringsmailen sendes til den adresse, afsenderen selv skriver. Uden en grænse pr.
+  // adresse kan formularen bruges til at bombardere en tredjepart med mails fra vores
+  // domæne — en IP-grænse alene stopper det ikke, hvis afsenderen skifter IP.
+  const { allowed: emailAllowed } = checkRateLimit(emailKey('ticket-email', email), 3, 60 * 60 * 1000);
+  if (!emailAllowed) {
+    return NextResponse.json(
+      { error: 'For mange henvendelser fra denne email. Prøv igen senere.' },
       { status: 429 }
     );
   }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { checkRateLimit, getClientIp, emailKey } from '@/lib/rate-limit';
 import { sendEmail } from '@/lib/resend';
 import { siteUrl } from '@/lib/site-config';
 
@@ -28,6 +28,12 @@ export async function POST(request: Request) {
       { error: 'For mange forsøg. Prøv igen om lidt.' },
       { status: 429 }
     );
+  }
+
+  // Samme grund som i submit-ticket: bekræftelsesmailen går til den indtastede adresse.
+  const { allowed: emailAllowed } = checkRateLimit(emailKey('waitlist-email', email), 3, 60 * 60 * 1000);
+  if (!emailAllowed) {
+    return NextResponse.json({ ok: true });
   }
 
   const supabase = createAdminClient();
