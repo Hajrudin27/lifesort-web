@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   // Samme grund som i submit-ticket: bekræftelsesmailen går til den indtastede adresse.
   const { allowed: emailAllowed } = checkRateLimit(emailKey('waitlist-email', cleanEmailValue), 3, 60 * 60 * 1000);
   if (!emailAllowed) {
-    return NextResponse.json({ ok: true, emailSent: false });
+    return NextResponse.json({ ok: true });
   }
 
   const supabase = createAdminClient();
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   // no new confirmation email is sent for an already-existing signup.
   if (error) {
     if (error.code === '23505') {
-      return NextResponse.json({ ok: true, emailSent: false });
+      return NextResponse.json({ ok: true });
     }
     captureDatabaseError(error, { route: 'join-waitlist' });
     return NextResponse.json({ error: 'Kunne ikke tilmelde' }, { status: 500 });
@@ -81,5 +81,7 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.json({ ok: true, emailSent: emailResult.ok });
+  // Samme svar uanset om der blev sendt en mail. Forskellen ville ellers fortælle enhver
+  // der spørger, om en given adresse allerede står på ventelisten.
+  return NextResponse.json({ ok: true });
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Apple, Bell, CheckCircle2, MailCheck, ShieldCheck, Smartphone, X } from 'lucide-react';
+import { Apple, Bell, MailCheck, ShieldCheck, Smartphone, X } from 'lucide-react';
 import { FIELD_LIMITS } from '@/lib/validation';
 
 type Platform = 'ios' | 'android';
@@ -13,7 +13,6 @@ export function WaitlistCta({ variant = 'light' }: { variant?: 'light' | 'dark' 
   const [company, setCompany] = useState(''); // honeypot — real visitors never fill this in
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [emailSent, setEmailSent] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const openModal = (platform: Platform) => {
@@ -21,7 +20,6 @@ export function WaitlistCta({ variant = 'light' }: { variant?: 'light' | 'dark' 
     setEmail('');
     setCompany('');
     setIsSubmitted(false);
-    setEmailSent(null);
     setError(null);
   };
 
@@ -47,8 +45,6 @@ export function WaitlistCta({ variant = 'light' }: { variant?: 'light' | 'dark' 
         return;
       }
 
-      const body = await res.json().catch(() => ({}));
-      setEmailSent(body.emailSent === true);
       setIsSubmitted(true);
     } catch {
       setError('Der gik noget galt. Prøv igen om lidt.');
@@ -98,18 +94,10 @@ export function WaitlistCta({ variant = 'light' }: { variant?: 'light' | 'dark' 
 
             {isSubmitted ? (
               <div className="mt-4 text-center">
-                {emailSent ? (
-                  <MailCheck className="mx-auto h-8 w-8 text-emerald-600" />
-                ) : (
-                  <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-600" />
-                )}
-                <h2 className="mt-3 text-base font-bold text-stone-900">
-                  {emailSent ? 'Tjek din indbakke' : 'Vi har modtaget din tilmelding'}
-                </h2>
+                <MailCheck className="mx-auto h-8 w-8 text-emerald-600" />
+                <h2 className="mt-3 text-base font-bold text-stone-900">Tjek din indbakke</h2>
                 <p className="mt-1 text-sm text-stone-600">
-                  {emailSent
-                    ? `Vi har sendt en bekræftelses-email til ${email.trim().toLowerCase()} — klik på linket i den, så er du officielt på listen til ${activePlatform === 'ios' ? 'iOS' : 'Android'}.`
-                    : `Hvis du allerede stod på listen, sender vi ikke en ny mail hver gang. Modtager du ikke noget, kan du tilmelde dig igen senere eller skrive til support.`}
+                  {`Står ${email.trim().toLowerCase()} ikke allerede på listen, har vi sendt en bekræftelses-email — klik på linket i den, så er du officielt på listen til ${activePlatform === 'ios' ? 'iOS' : 'Android'}.`}
                 </p>
                 <button
                   onClick={closeModal}
