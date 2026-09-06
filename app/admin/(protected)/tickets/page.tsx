@@ -18,10 +18,12 @@ import {
   Send,
   StickyNote,
   UserCircle,
+  Trash2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { orIlikeFilter } from '@/lib/postgrest';
 import { useToast } from '@/components/toast-provider';
+import { useConfirm } from '@/components/confirm-dialog';
 import { SkeletonRows } from '@/components/skeleton-rows';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { EntityHistoryModal } from '@/components/entity-history-modal';
@@ -179,6 +181,8 @@ function StatCard({
 export default function TicketsPage() {
   const supabase = createClient();
   const { showToast } = useToast();
+  const confirmDialog = useConfirm();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [rows, setRows] = useState<TicketRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -361,6 +365,41 @@ export default function TicketsPage() {
       showToast('Kunne ikke sende email.', 'error');
     }
     setIsResending(false);
+  };
+
+  // GDPR artikel 17: en supportsag indeholder navn, adresse og fritekst fra en person, og
+  // sletning er den eneste måde en anmodning kan efterkommes på. Endelig, derfor bekræftet
+  // og logget serverside.
+  const handleDeleteTicket = async () => {
+    if (!activeTicket) return;
+    const ok = await confirmDialog({
+      title: 'Slet supportsag?',
+      message: `Sagen fra ${activeTicket.email} slettes permanent, inklusive beskeden og et eventuelt svar. Handlingen kan ikke fortrydes.`,
+      confirmLabel: 'Slet',
+    });
+    if (!ok) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch('/api/admin/data/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'ticket', id: activeTicket.id }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        showToast(body.error ?? 'Kunne ikke slette sagen.', 'error');
+        return;
+      }
+      showToast('Sagen er slettet.');
+      setActiveTicket(null);
+      fetchRows();
+      fetchStats();
+    } catch {
+      showToast('Kunne ikke slette sagen.', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleSetStatus = async (status: TicketStatus) => {
@@ -720,6 +759,12 @@ export default function TicketsPage() {
                     {isResending ? 'Sender...' : 'Gensend email'}
                   </button>
                 )}
+                <button onClick={handleDeleteTicket} disabled={isDeleting}
+                  title="Slet sagen permanent"
+                  className="flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-red-600 disabled:opacity-40 dark:text-stone-400 dark:hover:text-red-400">
+                  <Trash2 size={13} />
+                  {isDeleting ? 'Sletter...' : 'Slet sag'}
+                </button>
                 <button onClick={() => setShowHistory(true)}
                   className="flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200">
                   <History size={13} /> Historik

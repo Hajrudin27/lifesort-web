@@ -11,10 +11,12 @@ import {
   Search,
   Smartphone,
   TrendingUp,
+  Trash2,
   Users,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/toast-provider';
+import { useConfirm } from '@/components/confirm-dialog';
 import { rowsToCsv } from '@/lib/csv';
 import { SkeletonRows } from '@/components/skeleton-rows';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -202,6 +204,40 @@ export default function WaitlistPage() {
     a.download = `lifesort-venteliste-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const confirmDialog = useConfirm();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Sletning her er hvordan en anmodning efter GDPR artikel 17 rent faktisk efterkommes.
+  // Den er endelig, så den kræver en bekræftelse og bliver altid logget serverside.
+  const handleDelete = async (row: WaitlistRow) => {
+    const ok = await confirmDialog({
+      title: 'Slet tilmelding?',
+      message: `${row.email} fjernes permanent fra ventelisten. Handlingen kan ikke fortrydes.`,
+      confirmLabel: 'Slet',
+    });
+    if (!ok) return;
+
+    setDeletingId(row.id);
+    try {
+      const res = await fetch('/api/admin/data/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'waitlist', id: row.id }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        showToast(body.error ?? 'Kunne ikke slette tilmeldingen.', 'error');
+        return;
+      }
+      showToast(`${row.email} er slettet.`);
+      await Promise.all([fetchRows(), fetchStats()]);
+    } catch {
+      showToast('Kunne ikke slette tilmeldingen.', 'error');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleConfirm = async (row: WaitlistRow) => {
@@ -398,6 +434,15 @@ export default function WaitlistPage() {
                         Bekræft
                       </button>
                     )}
+                    <button
+                      onClick={() => handleDelete(row)}
+                      disabled={deletingId === row.id}
+                      title="Slet tilmeldingen permanent"
+                      className="ml-2 inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-600 transition hover:border-red-300 hover:text-red-600 disabled:opacity-40 dark:border-stone-700 dark:text-stone-400 dark:hover:border-red-500/40 dark:hover:text-red-400"
+                    >
+                      {deletingId === row.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                      Slet
+                    </button>
                   </td>
                 </tr>
               ))
