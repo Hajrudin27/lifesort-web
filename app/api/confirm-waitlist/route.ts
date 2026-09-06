@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { captureDatabaseError } from '@/lib/observability';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { siteUrl } from '@/lib/site-config';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 /**
  * confirm_token er en uuid i databasen. Uden det her tjek gik enhver streng videre til
@@ -17,6 +18,14 @@ export async function GET(request: Request) {
 
   if (!token || !UUID_PATTERN.test(token)) {
     return NextResponse.redirect(`${siteUrl}/waitlist-confirmed?status=invalid`);
+  }
+
+  // Endpointet er offentligt og slår op i databasen ved hvert kald. En rigtig bruger
+  // klikker linket én gang; grænsen er sat højt nok til at et par genklik og en
+  // mail-klients forhåndshentning går fri.
+  const { allowed } = checkRateLimit(`confirm-waitlist:${getClientIp(request)}`, 20, 60 * 60 * 1000);
+  if (!allowed) {
+    return NextResponse.redirect(`${siteUrl}/waitlist-confirmed?status=error`);
   }
 
   const supabase = createAdminClient();

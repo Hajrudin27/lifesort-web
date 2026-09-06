@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdmin } from '@/lib/admin-auth';
 import { CUSTOMER_DATA_ROLES } from '@/lib/admin-roles';
 import { sendEmail, escapeHtml } from '@/lib/resend';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { logActivity } from '@/lib/activity-log';
 
 export async function POST(request: Request) {
@@ -16,6 +17,17 @@ export async function POST(request: Request) {
   const auth = await requireAdmin(CUSTOMER_DATA_ROLES);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  // Hvert kald sender en mail fra jeres domæne. Ruten er kun for owner og support, men en
+  // kapret session skal ikke kunne bruges som afsendermaskine — og en fejl i UI'et skal
+  // ikke kunne sende det samme svar hundrede gange.
+  const { allowed } = checkRateLimit(`ticket-reply:${auth.admin.id}`, 30, 60 * 60 * 1000);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'For mange svar sendt på kort tid. Prøv igen om lidt.' },
+      { status: 429 }
+    );
   }
 
   const adminClient = createAdminClient();
