@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdmin } from '@/lib/admin-auth';
 import { CUSTOMER_DATA_ROLES } from '@/lib/admin-roles';
 import { sendEmail, escapeHtml } from '@/lib/resend';
+import { logActivity } from '@/lib/activity-log';
 
 export async function POST(request: Request) {
   const { ticketId } = await request.json();
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   const adminClient = createAdminClient();
   const { data: ticket, error: ticketError } = await adminClient
     .from('support_tickets')
-    .select('email, subject, message, admin_reply')
+    .select('id, email, subject, message, admin_reply')
     .eq('id', ticketId)
     .single();
 
@@ -56,6 +57,15 @@ export async function POST(request: Request) {
       { status: 502 }
     );
   }
+
+  await logActivity(adminClient, {
+    actorId: auth.admin.id,
+    actorName: auth.admin.fullName,
+    action: 'replied',
+    entityType: 'ticket',
+    entityId: ticket.id,
+    entityLabel: ticket.subject,
+  });
 
   return NextResponse.json({ ok: true });
 }

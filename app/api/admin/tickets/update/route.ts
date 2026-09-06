@@ -38,8 +38,8 @@ async function logTicketActivity({
   ticketSubject,
 }: {
   actorId: string;
-  actorName: string | null;
-  action: 'replied' | 'updated';
+  actorName: string;
+  action: 'updated';
   ticketId: string;
   ticketSubject: string | null;
 }) {
@@ -86,8 +86,6 @@ export async function POST(request: Request) {
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const adminRow = { id: auth.admin.id, full_name: auth.admin.fullName };
-
   const now = new Date().toISOString();
   const needsEnhancedSchema =
     priority !== undefined || category !== undefined || internalNote !== undefined || status === 'waiting';
@@ -144,11 +142,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Supportsag ikke fundet' }, { status: 404 });
     }
 
-    const action = adminReply !== undefined ? 'replied' : 'updated';
     await logTicketActivity({
-      actorId: adminRow.id,
-      actorName: adminRow.full_name,
-      action,
+      actorId: auth.admin.id,
+      actorName: auth.admin.fullName,
+      action: 'updated',
       ticketId: id,
       ticketSubject: data.subject,
     });
@@ -187,11 +184,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Supportsag ikke fundet' }, { status: 404 });
   }
 
-  const action = adminReply !== undefined ? 'replied' : 'updated';
   await logTicketActivity({
-    actorId: adminRow.id,
-    actorName: adminRow.full_name,
-    action,
+    actorId: auth.admin.id,
+    actorName: auth.admin.fullName,
+    action: 'updated',
     ticketId: id,
     ticketSubject: data.subject,
   });

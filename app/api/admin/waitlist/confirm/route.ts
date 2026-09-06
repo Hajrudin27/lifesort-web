@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/nextjs';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdmin } from '@/lib/admin-auth';
 import { CUSTOMER_DATA_ROLES } from '@/lib/admin-roles';
+import { logActivity } from '@/lib/activity-log';
 
 export async function POST(request: Request) {
   const { id } = await request.json();
@@ -32,6 +33,15 @@ export async function POST(request: Request) {
   if (!data) {
     return NextResponse.json({ error: 'Tilmelding ikke fundet' }, { status: 404 });
   }
+
+  await logActivity(adminClient, {
+    actorId: auth.admin.id,
+    actorName: auth.admin.fullName,
+    action: 'confirmed',
+    entityType: 'waitlist_signup',
+    entityId: data.id,
+    entityLabel: `${data.email} (${data.platform})`,
+  });
 
   return NextResponse.json({ ok: true, row: data });
 }

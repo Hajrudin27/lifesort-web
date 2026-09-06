@@ -1,7 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export type ActivityAction = 'created' | 'updated' | 'deleted' | 'replied' | 'invited';
-export type ActivityEntityType = 'price' | 'offer' | 'recipe' | 'ticket' | 'timeline_event' | 'admin_user';
+export type ActivityAction = 'created' | 'updated' | 'deleted' | 'replied' | 'invited' | 'confirmed';
+export type ActivityEntityType =
+  | 'price'
+  | 'offer'
+  | 'recipe'
+  | 'ticket'
+  | 'timeline_event'
+  | 'admin_user'
+  | 'waitlist_signup';
 
 /**
  * Fire-and-forget: a logging failure should never block or surface an error
