@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { sendEmail } from '@/lib/resend';
+import { sendEmail, escapeHtml } from '@/lib/resend';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +19,15 @@ function inNextDaysStr(days: number) {
   const d = new Date();
   d.setDate(d.getDate() + days);
   return d.toISOString().split('T')[0];
+}
+
+/**
+ * Titler skrives af admins, ikke af os. En editor kunne ellers lægge markup — fx et link
+ * der ligner en adgangskode-nulstilling — ind i den mail der hver mandag sendes til alle
+ * admins, inklusive ejerne.
+ */
+function timelineItem(event: { title: string; event_date: string }) {
+  return `<li>${escapeHtml(event.title)} — ${escapeHtml(event.event_date)}</li>`;
 }
 
 export async function GET(request: Request) {
@@ -51,11 +60,11 @@ export async function GET(request: Request) {
     </ul>
     ${overdue.length > 0 ? `
       <h3 style="color:#e11d48;">Overskredne deadlines (${overdue.length})</h3>
-      <ul>${overdue.map((e) => `<li>${e.title} — ${e.event_date}</li>`).join('')}</ul>
+      <ul>${overdue.map(timelineItem).join('')}</ul>
     ` : ''}
     ${upcoming.length > 0 ? `
       <h3>Deadlines de næste 7 dage (${upcoming.length})</h3>
-      <ul>${upcoming.map((e) => `<li>${e.title} — ${e.event_date}</li>`).join('')}</ul>
+      <ul>${upcoming.map(timelineItem).join('')}</ul>
     ` : '<p>Ingen deadlines de næste 7 dage.</p>'}
     <p style="color:#78716c; font-size:13px; margin-top:24px;">Automatisk sendt hver mandag fra LifeSort Admin.</p>
   `;

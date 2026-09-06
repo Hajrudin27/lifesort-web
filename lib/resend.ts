@@ -194,9 +194,19 @@ export async function sendEmail({ to, subject, html }: SendEmailInput): Promise<
   return { ok: true };
 }
 
+/**
+ * Escaper tekst til brug i HTML-mails.
+ *
+ * Citationstegn er med, selvom alle nuværende kaldesteder indsætter i tekstindhold hvor de
+ * er harmløse: første gang nogen bruger den inde i en attribut — href, style, alt — ville
+ * en manglende escaping af " eller ' lade værdien bryde ud af attributten. Det er billigere
+ * at dække det nu end at huske reglen hver gang.
+ */
 export function escapeHtml(str: string) {
   return str
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
