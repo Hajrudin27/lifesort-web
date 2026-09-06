@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdmin } from '@/lib/admin-auth';
 import { CUSTOMER_DATA_ROLES } from '@/lib/admin-roles';
 import { logActivity } from '@/lib/activity-log';
+import { emailAuditId, maskEmail } from '@/lib/privacy';
 
 export async function POST(request: Request) {
   const { id } = await request.json();
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
     action: 'confirmed',
     entityType: 'waitlist_signup',
     entityId: data.id,
-    entityLabel: `${data.email} (${data.platform})`,
+    entityLabel: `${maskEmail(data.email)} (${data.platform}) · audit ${emailAuditId(data.email)}`,
   });
 
   return NextResponse.json({ ok: true, row: data });

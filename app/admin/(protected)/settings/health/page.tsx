@@ -132,7 +132,7 @@ export default async function EnvironmentHealthPage() {
     envCheck('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'Supabase anon-nøgle'),
     envCheck('SUPABASE_SERVICE_ROLE_KEY', 'Supabase service role-nøgle'),
     envCheck('RESEND_API_KEY', 'Resend API-nøgle'),
-    envCheck('CRON_SECRET', 'Cron-secret (ugentlig digest)'),
+    envCheck('CRON_SECRET', 'Cron-secret (digests og data-retention)'),
     envCheck('NEXT_PUBLIC_SENTRY_DSN', 'Sentry DSN', false),
   ];
 
@@ -274,6 +274,12 @@ export default async function EnvironmentHealthPage() {
       Boolean(process.env.CRON_SECRET && resendSetup.status === 'ok'),
       'Cron-secret og Resend-afsender er klar',
       'CRON_SECRET eller Resend-afsender mangler'
+    ),
+    boolCheck(
+      'Data-retention',
+      Boolean(process.env.CRON_SECRET),
+      'Daglig oprydning af gamle lukkede supportsager, ubekræftede ventelister og forældreløse attachments er klar',
+      'CRON_SECRET mangler. /api/cron/data-retention kan ikke køres sikkert.'
     ),
     {
       label: 'Resend-domæne',

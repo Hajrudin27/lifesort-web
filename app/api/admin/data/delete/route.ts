@@ -5,6 +5,7 @@ import { CUSTOMER_DATA_ROLES } from '@/lib/admin-roles';
 import { captureDatabaseError } from '@/lib/observability';
 import { logActivity } from '@/lib/activity-log';
 import { readJsonBody } from '@/lib/validation';
+import { emailAuditId, maskEmail } from '@/lib/privacy';
 
 /**
  * Sletning af persondata indsamlet på hjemmesiden.
@@ -13,9 +14,9 @@ import { readJsonBody } from '@/lib/validation';
  * gøre det på: hverken supportsager eller ventelistetilmeldinger kunne fjernes fra
  * panelet. En sletteanmodning kunne kun efterkommes ved at gå direkte i databasen.
  *
- * Sletningen er endelig — der er ingen papirkurv — så den logges altid, med adressen den
- * angik. Det er selve pointen med et revisionsspor: bagefter skal man kunne dokumentere,
- * at anmodningen blev efterkommet, og af hvem.
+ * Sletningen er endelig — der er ingen papirkurv — så den logges altid. Loggen gemmer en
+ * maskeret email og et kort audit-id i stedet for den fulde adresse, så slettehandlingen
+ * ikke efterlader unødvendig persondata i revisionssporet.
  */
 
 const DELETABLE = {
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
     action: 'deleted',
     entityType: target.entityType,
     entityId: row.id,
-    entityLabel: `${target.label}: ${row.email}`,
+    entityLabel: `${target.label}: ${maskEmail(row.email)} · audit ${emailAuditId(row.email)}`,
   });
 
   return NextResponse.json({ ok: true });

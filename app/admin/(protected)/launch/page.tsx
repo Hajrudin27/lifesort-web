@@ -347,6 +347,16 @@ export default async function LaunchPage() {
           action: 'Åbn',
           owner: 'Drift',
         },
+        {
+          label: 'Data-retention',
+          detail: process.env.CRON_SECRET
+            ? 'Daglig oprydning af gammel persondata og forældreløse attachments er konfigureret'
+            : 'CRON_SECRET mangler, så data-retention cron kan ikke køres sikkert',
+          status: process.env.CRON_SECRET ? 'ready' : 'critical',
+          href: '/admin/settings/health',
+          action: 'Tjek',
+          owner: 'Privacy',
+        },
       ],
     },
     {

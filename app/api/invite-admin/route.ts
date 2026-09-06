@@ -7,6 +7,7 @@ import { logActivity } from '@/lib/activity-log';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { siteUrl } from '@/lib/site-config';
 import { cleanText, cleanEmail, readJsonBody, FIELD_LIMITS } from '@/lib/validation';
+import { emailAuditId, maskEmail } from '@/lib/privacy';
 
 // At oprette en admin er den mest privilegerede handling i panelet — kun ejere må det.
 // Ellers kunne enhver 'support'- eller 'editor'-admin invitere sig selv en ny 'owner'-konto
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
     actorName: admin.fullName,
     action: 'invited',
     entityType: 'admin_user',
-    entityLabel: `${cleanNameValue} (${cleanEmailValue}) som ${newRole}`,
+    entityLabel: `${cleanNameValue} (${maskEmail(cleanEmailValue)} · audit ${emailAuditId(cleanEmailValue)}) som ${newRole}`,
   });
 
   return NextResponse.json({ ok: true });
