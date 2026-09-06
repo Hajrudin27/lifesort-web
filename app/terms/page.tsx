@@ -2,10 +2,14 @@ import { PublicHeader } from '@/components/public-header';
 import { PublicFooter } from '@/components/public-footer';
 import { TableOfContents } from '@/components/table-of-contents';
 import { BackToTop } from '@/components/back-to-top';
+import { createPageMetadata } from '@/lib/seo';
 
-export const metadata = {
+export const metadata = createPageMetadata({
   title: 'Vilkår og betingelser',
-};
+  description: 'Læs vilkår og betingelser for brug af LifeSort, herunder konto, ansvar, rettigheder og acceptabel brug.',
+  path: '/terms',
+  keywords: ['LifeSort vilkår', 'LifeSort betingelser', 'LifeSort terms'],
+});
 
 const toc = [
   { id: 'accept', label: '1. Accept af vilkår' },

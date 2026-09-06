@@ -4,11 +4,14 @@ import { PublicHeader } from '@/components/public-header';
 import { PublicFooter } from '@/components/public-footer';
 import { SupportForm } from '@/components/support-form';
 import { ScrollReveal } from '@/components/scroll-reveal';
+import { createPageMetadata } from '@/lib/seo';
 
-export const metadata = {
+export const metadata = createPageMetadata({
   title: 'Kontakt support',
   description: 'Skriv til LifeSort-teamet — vi svarer typisk inden for 24 timer.',
-};
+  path: '/support',
+  keywords: ['LifeSort support', 'kontakt LifeSort', 'hjælp til LifeSort'],
+});
 
 const steps = [
   { icon: Inbox, label: 'Vi modtager din besked', done: true },

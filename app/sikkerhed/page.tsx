@@ -3,11 +3,14 @@ import { ShieldCheck, Lock, UserCheck, Download, HeartPulse, ArrowRight } from '
 import { PublicHeader } from '@/components/public-header';
 import { PublicFooter } from '@/components/public-footer';
 import { ScrollReveal } from '@/components/scroll-reveal';
+import { createPageMetadata } from '@/lib/seo';
 
-export const metadata = {
+export const metadata = createPageMetadata({
   title: 'Sikkerhed & privatliv',
   description: 'Sådan beskytter LifeSort dine data — konkret, ikke kun i småt skrevet jura.',
-};
+  path: '/sikkerhed',
+  keywords: ['LifeSort sikkerhed', 'LifeSort privatliv', 'hverdagsapp datasikkerhed'],
+});
 
 const points = [
   {

@@ -8,12 +8,52 @@ import { HeroSubtitle } from '@/components/hero-subtitle';
 import { ScrollReveal } from '@/components/scroll-reveal';
 import { FounderStory } from '@/components/founder-story';
 import { modules } from '@/lib/modules-content';
+import { absoluteUrl, createPageMetadata, defaultDescription, defaultTitle, siteName } from '@/lib/seo';
 
-const moreFeatures = ['Vaner', 'Hjemmet', 'Livsmål', 'Gøremål', 'Rejser', 'Garantier'];
+export const metadata = createPageMetadata({
+  title: defaultTitle,
+  description: defaultDescription,
+  path: '/',
+  absoluteTitle: true,
+  keywords: ['LifeSort', 'hverdagsapp', 'madplan', 'økonomi', 'karriere', 'to do'],
+});
+
+const websiteJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: siteName,
+  url: absoluteUrl('/'),
+  description: defaultDescription,
+  inLanguage: 'da-DK',
+};
+
+const softwareJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: siteName,
+  applicationCategory: 'LifestyleApplication',
+  operatingSystem: 'iOS, Android',
+  url: absoluteUrl('/'),
+  description: defaultDescription,
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'DKK',
+    availability: 'https://schema.org/PreOrder',
+  },
+};
 
 export default function Home() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }}
+      />
       <PublicHeader />
       <main id="main-content" className="flex-1">
         {/* Hero — dark anchor moment */}

@@ -2,10 +2,14 @@ import { PublicHeader } from '@/components/public-header';
 import { PublicFooter } from '@/components/public-footer';
 import { TableOfContents } from '@/components/table-of-contents';
 import { BackToTop } from '@/components/back-to-top';
+import { createPageMetadata } from '@/lib/seo';
 
-export const metadata = {
+export const metadata = createPageMetadata({
   title: 'Privatlivspolitik',
-};
+  description: 'Læs hvordan LifeSort behandler personoplysninger, beskytter dine data og håndterer dine GDPR-rettigheder.',
+  path: '/privacy',
+  keywords: ['LifeSort privatliv', 'LifeSort GDPR', 'LifeSort data'],
+});
 
 const toc = [
   { id: 'dataansvarlig', label: '1. Dataansvarlig' },

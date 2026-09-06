@@ -4,7 +4,8 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { ToastProvider } from "@/components/toast-provider";
 import { ConfirmProvider } from "@/components/confirm-dialog";
-import { siteUrl, siteDescription } from "@/lib/site-config";
+import { siteUrl } from "@/lib/site-config";
+import { createPageMetadata, defaultDescription, defaultTitle, siteName } from "@/lib/seo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,27 +24,33 @@ const fraunces = Fraunces({
   style: ["normal", "italic"],
 });
 
-const siteUrlDescription = siteDescription;
-
 export const metadata: Metadata = {
+  ...createPageMetadata({
+    title: defaultTitle,
+    description: defaultDescription,
+    path: '/',
+    absoluteTitle: true,
+    keywords: ['LifeSort', 'hverdagsapp', 'madplan', 'budget', 'to do', 'familieoverblik'],
+  }),
   metadataBase: new URL(siteUrl),
+  applicationName: siteName,
+  creator: siteName,
+  publisher: siteName,
+  category: 'lifestyle',
   title: {
-    default: "LifeSort — Dit liv, samlet ét sted",
-    template: "%s — LifeSort",
+    default: defaultTitle,
+    template: `%s — ${siteName}`,
   },
-  description: siteUrlDescription,
-  openGraph: {
-    title: "LifeSort — Dit liv, samlet ét sted",
-    description: siteUrlDescription,
-    url: siteUrl,
-    siteName: "LifeSort",
-    locale: "da_DK",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "LifeSort — Dit liv, samlet ét sted",
-    description: siteUrlDescription,
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
   },
 };
 

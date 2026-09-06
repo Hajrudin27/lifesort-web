@@ -5,7 +5,7 @@ import { PublicHeader } from '@/components/public-header';
 import { PublicFooter } from '@/components/public-footer';
 import { WaitlistCta } from '@/components/waitlist-cta';
 import { modules, getModule, getAdjacentModules, faqs } from '@/lib/modules-content';
-import { siteUrl } from '@/lib/site-config';
+import { absoluteUrl, createPageMetadata, siteName } from '@/lib/seo';
 
 export function generateStaticParams() {
   return modules.map((m) => ({ slug: m.slug }));
@@ -15,10 +15,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const mod = getModule(slug);
   if (!mod) return {};
-  return {
-    title: `${mod.title} — LifeSort`,
+  return createPageMetadata({
+    title: mod.title,
     description: mod.description,
-  };
+    path: `/modules/${mod.slug}`,
+    keywords: [siteName, mod.title, mod.tagline, 'hverdagsapp'],
+  });
 }
 
 export default async function ModulePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -34,8 +36,8 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'LifeSort', item: siteUrl },
-      { '@type': 'ListItem', position: 2, name: mod.title, item: `${siteUrl}/modules/${mod.slug}` },
+      { '@type': 'ListItem', position: 1, name: siteName, item: absoluteUrl('/') },
+      { '@type': 'ListItem', position: 2, name: mod.title, item: absoluteUrl(`/modules/${mod.slug}`) },
     ],
   };
 

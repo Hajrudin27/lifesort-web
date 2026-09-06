@@ -5,11 +5,14 @@ import { PublicFooter } from '@/components/public-footer';
 import { FaqAccordion } from '@/components/faq-accordion';
 import { BackToTop } from '@/components/back-to-top';
 import { ScrollReveal } from '@/components/scroll-reveal';
+import { createPageMetadata } from '@/lib/seo';
 
-export const metadata = {
+export const metadata = createPageMetadata({
   title: 'FAQ',
   description: 'Svar på de mest almindelige spørgsmål om LifeSort — moduler, data, konto og venteliste.',
-};
+  path: '/faq',
+  keywords: ['LifeSort FAQ', 'LifeSort spørgsmål', 'hverdagsapp hjælp'],
+});
 
 export default function FaqPage() {
   return (
