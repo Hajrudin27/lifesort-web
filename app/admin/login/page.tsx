@@ -3,7 +3,6 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, Mail, Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   return (
@@ -18,7 +17,6 @@ function LoginForm() {
   // Middlewaren sender folk hertil med ?error=no-access, hvis de er logget ind som
   // almindelig LifeSort-bruger. Uden en besked ville det ligne en tilfældig udlogning.
   const noAccess = useSearchParams().get('error') === 'no-access';
-  const supabase = createClient();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,23 +28,24 @@ function LoginForm() {
     setError(null);
     setIsLoading(true);
 
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (signInError) {
-      setError('Forkert email eller adgangskode.');
+    // Login går gennem vores egen rute, så forsøgene kan tælles og begrænses server-side.
+    // Browseren får kun en session, hvis kontoen faktisk har admin-adgang.
+    let res: Response;
+    try {
+      res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+    } catch {
+      setError('Kunne ikke få forbindelse. Prøv igen.');
       setIsLoading(false);
       return;
     }
 
-    const { data: adminRow } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('id', data.user.id)
-      .single();
-
-    if (!adminRow) {
-      setError('Denne konto har ikke admin-adgang.');
-      await supabase.auth.signOut();
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? 'Forkert email eller adgangskode.');
       setIsLoading(false);
       return;
     }
