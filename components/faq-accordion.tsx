@@ -20,7 +20,7 @@ const CATEGORY_META: Record<Category, { label: string; icon: typeof Sparkles; ti
 const QUICK_SEARCHES = ['pris', 'madplan', 'data', 'venteliste', 'konto'];
 
 function resultText(count: number, query: string) {
-  if (query.trim().length > 0) return count === 1 ? '1 match' : `${count} matches`;
+  if (query.trim().length > 0) return count === 1 ? '1 resultat' : `${count} resultater`;
   return count === 1 ? '1 spørgsmål' : `${count} spørgsmål`;
 }
 
@@ -145,7 +145,7 @@ export function FaqAccordion() {
               Prøv et kortere søgeord, eller send spørgsmålet direkte til support med kategorien forudfyldt.
             </p>
             <Link
-              href={`/support?category=${supportCategory}`}
+              href={`/support?category=${supportCategory}#support-form`}
               className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-stone-800"
             >
               Kontakt support

@@ -401,6 +401,36 @@ export const faqs: FaqEntry[] = [
     answer: 'Prismodellen er endnu ikke endeligt fastlagt. Vi opdaterer denne side, så snart den er på plads.',
   },
   {
+    category: 'generelt',
+    question: 'Hvem er LifeSort bygget til?',
+    answer:
+      'LifeSort er bygget til mennesker, der gerne vil samle hverdagsstyring ét sted i stedet for at hoppe mellem noter, regneark, kalender, to-do-apps og billeder af kvitteringer.',
+  },
+  {
+    category: 'generelt',
+    question: 'Skal jeg bruge alle modulerne?',
+    answer:
+      'Nej. Du kan bruge LifeSort modul for modul og starte med det, der giver mest mening for dig. Resten kan blive liggende, indtil du får brug for det.',
+  },
+  {
+    category: 'generelt',
+    question: 'Kan LifeSort erstatte mine nuværende hverdagsapps?',
+    answer:
+      'For mange små hverdagsflows er målet ja: madplaner, gøremål, kvitteringer, vaner, rejser og budgetter kan samles i LifeSort. Nogle specialapps kan stadig give mening ved siden af.',
+  },
+  {
+    category: 'generelt',
+    question: 'Bliver LifeSort bygget som en app eller en hjemmeside?',
+    answer:
+      'Selve produktet bliver en mobilapp til iOS og Android. Hjemmesiden bruges til venteliste, information, support og forklaring af funktionerne.',
+  },
+  {
+    category: 'generelt',
+    question: 'Kan jeg foreslå nye funktioner?',
+    answer:
+      'Ja. Brug supportformularen og vælg kategorien Feature, så lander forslaget direkte i vores support- og feedbackflow.',
+  },
+  {
     category: 'moduler',
     question: 'Hvordan virker madplan-modulet?',
     answer:
@@ -428,6 +458,139 @@ export const faqs: FaqEntry[] = [
     moduleSlug: 'garantier',
   },
   {
+    category: 'moduler',
+    question: 'Kan madplanen tage højde for mit budget?',
+    answer:
+      'Ja. Madplan-modulet tager udgangspunkt i det budget, du sætter for ugen, og forsøger at matche opskrifter, råvarer og aktuelle tilbud, så planen holder sig realistisk.',
+    moduleSlug: 'madplan',
+  },
+  {
+    category: 'moduler',
+    question: 'Kan jeg bytte måltider ud i madplanen?',
+    answer:
+      'Ja. Ideen er, at du kan bytte enkelte måltider ud uden at skulle starte hele madplanen forfra. Planen skal kunne tilpasses din uge, ikke omvendt.',
+    moduleSlug: 'madplan',
+  },
+  {
+    category: 'moduler',
+    question: 'Hvordan hjælper økonomi-modulet?',
+    answer:
+      'Økonomi-modulet samler faste udgifter, tilbagevendende betalinger, budgetter og opsparingsmål, så du kan følge din måned uden at vedligeholde et separat regneark.',
+    moduleSlug: 'oekonomi',
+  },
+  {
+    category: 'moduler',
+    question: 'Kan jeg holde styr på tilbagevendende udgifter?',
+    answer:
+      'Ja. Tilbagevendende udgifter oprettes én gang og kan dukke op automatisk, så husleje, abonnementer, forsikringer og andre faste poster ikke skal tastes igen hver måned.',
+    moduleSlug: 'oekonomi',
+  },
+  {
+    category: 'moduler',
+    question: 'Kan jeg følge opsparingsmål?',
+    answer:
+      'Ja. Du kan oprette mål og følge fremdriften over tid, så større ting som rejser, indskud, udstyr eller bufferopsparing ikke bare lever som en tanke.',
+    moduleSlug: 'oekonomi',
+  },
+  {
+    category: 'moduler',
+    question: 'Hvordan virker karriere-modulet?',
+    answer:
+      'Karriere-modulet samler ansøgninger, status, opfølgningsdatoer, noter og kompetencer, så du altid kan se, hvor du har søgt, og hvad næste skridt er.',
+    moduleSlug: 'karriere',
+  },
+  {
+    category: 'moduler',
+    question: 'Kan jeg holde styr på jobansøgninger?',
+    answer:
+      'Ja. Du kan oprette ansøgninger med virksomhed, stilling, dato og status, så du slipper for at grave i mails og gamle dokumentnavne.',
+    moduleSlug: 'karriere',
+  },
+  {
+    category: 'moduler',
+    question: 'Hvordan fungerer vaner?',
+    answer:
+      'Vaner-modulet er bygget til daglig afkrydsning og synlig fremdrift. Du kan følge vaner, du vil bygge op, og vaner du gerne vil bryde.',
+    moduleSlug: 'vaner',
+  },
+  {
+    category: 'moduler',
+    question: 'Kan LifeSort hjælpe med dårlige vaner?',
+    answer:
+      'Ja. Vaner-modulet er ikke kun til gode vaner. Det kan også bruges til at følge noget, du forsøger at stoppe eller gøre mindre af.',
+    moduleSlug: 'vaner',
+  },
+  {
+    category: 'moduler',
+    question: 'Kan jeg lave større livsmål?',
+    answer:
+      'Ja. Livsmål-modulet er tænkt til mål, der er større end en dags huskeliste. Du kan bryde målet ned i delmål og følge fremdriften over tid.',
+    moduleSlug: 'livsmaal',
+  },
+  {
+    category: 'moduler',
+    question: 'Hvad er forskellen på gøremål og livsmål?',
+    answer:
+      'Gøremål er de konkrete ting, du skal gøre i hverdagen. Livsmål er de større retninger, der kræver flere delmål og længere fremdrift.',
+    moduleSlug: 'livsmaal',
+  },
+  {
+    category: 'moduler',
+    question: 'Hvordan virker gøremål?',
+    answer:
+      'Gøremål-modulet giver dig en enkel huskeliste med prioritet og deadline, så dagens opgaver ikke drukner i noter eller tilfældige beskeder til dig selv.',
+    moduleSlug: 'goeremaal',
+  },
+  {
+    category: 'moduler',
+    question: 'Kan jeg se gamle færdige gøremål?',
+    answer:
+      'Ja. Ideen er, at færdige gøremål kan findes igen, så du både kan rydde op i den aktive liste og stadig have historikken, hvis du får brug for den.',
+    moduleSlug: 'goeremaal',
+  },
+  {
+    category: 'moduler',
+    question: 'Hvordan hjælper rejse-modulet?',
+    answer:
+      'Rejse-modulet samler destination, datoer og pakkeliste pr. tur, så praktiske detaljer ikke ligger spredt i noter, screenshots og beskeder.',
+    moduleSlug: 'rejser',
+  },
+  {
+    category: 'moduler',
+    question: 'Kan jeg få en pakkeliste til rejser?',
+    answer:
+      'Ja. Du kan lave en pakkeliste pr. rejse og krydse ting af, efterhånden som de bliver pakket.',
+    moduleSlug: 'rejser',
+  },
+  {
+    category: 'moduler',
+    question: 'Får jeg besked før en garanti udløber?',
+    answer:
+      'Ja. Garanti-modulet er tænkt til at gemme kvittering og garantibevis og give dig en påmindelse i god tid før udløb.',
+    moduleSlug: 'garantier',
+  },
+  {
+    category: 'moduler',
+    question: 'Kan jeg bruge Hjemmet-modulet alene?',
+    answer:
+      'Ja. Hjemmet-modulet kan bruges alene til egne opgaver og indkøbslister, men det bliver ekstra stærkt, hvis man deler opgaver med en partner eller roommate.',
+    moduleSlug: 'hjemmet',
+  },
+  {
+    category: 'moduler',
+    question: 'Kan opgaver i hjemmet rotere automatisk?',
+    answer:
+      'Ja. Opgaver kan sættes op, så de skifter mellem to personer, hver gang de markeres som færdige.',
+    moduleSlug: 'hjemmet',
+  },
+  {
+    category: 'moduler',
+    question: 'Kan jeg slå cyklus-relaterede symptomer op?',
+    answer:
+      'Ja. Cyklus-modulet er tænkt sammen med et roligt opslagsværk om symptomer og tilstande, så du kan forstå mønstre uden at skulle starte med en bred internetsøgning.',
+    moduleSlug: 'cyklus',
+  },
+  {
     category: 'konto',
     question: 'Er mine data sikre?',
     answer: 'Ja. Dine data er knyttet til din personlige konto og er ikke tilgængelige for andre brugere.',
@@ -441,7 +604,50 @@ export const faqs: FaqEntry[] = [
   {
     category: 'konto',
     question: 'Hvordan sletter jeg min konto?',
-    answer: 'Skriv til os via supportformularen nedenfor, så hjælper vi dig med at slette din konto og alle tilknyttede data.',
+    answer: 'Skriv til os via supportformularen, så hjælper vi dig med at slette din konto og alle tilknyttede data.',
+  },
+  {
+    category: 'konto',
+    question: 'Kan andre brugere se mine data?',
+    answer:
+      'Nej. Dine personlige data er knyttet til din egen konto. Andre brugere kan ikke se dine gøremål, økonomi, cyklusdata, garantier eller andre private oplysninger.',
+  },
+  {
+    category: 'konto',
+    question: 'Kan LifeSort-teamet se mine private app-data?',
+    answer:
+      'Nej. Admin-panelet er bygget til drift, support og offentligt indhold som opskrifter og priser. Personlige app-data som økonomi, cyklus og private gøremål er ikke noget, teamet skal kunne bladre rundt i.',
+  },
+  {
+    category: 'konto',
+    question: 'Hvordan behandler I sundhedsdata?',
+    answer:
+      'Sundhedsdata som cyklus og symptomer behandles ekstra varsomt og kun med dit samtykke. De bruges til funktionerne i appen og er knyttet til din konto.',
+    moduleSlug: 'cyklus',
+  },
+  {
+    category: 'konto',
+    question: 'Kan jeg ændre min email senere?',
+    answer:
+      'Det er planen, at kontoindstillingerne skal kunne håndtere ændringer som email og profiloplysninger. Hvis noget driller, kan support hjælpe.',
+  },
+  {
+    category: 'konto',
+    question: 'Hvad sker der med mine data, hvis jeg sletter kontoen?',
+    answer:
+      'Når en konto slettes, skal tilknyttede personlige data også fjernes. Supportdata og tekniske logs kan i nogle tilfælde opbevares kortvarigt, hvis det er nødvendigt for drift eller sikkerhed.',
+  },
+  {
+    category: 'konto',
+    question: 'Bruger I mine data til reklamer?',
+    answer:
+      'Nej. LifeSort er bygget som et hverdagsværktøj, ikke som et reklameprodukt. Dine private data skal ikke bruges til målrettede annoncer.',
+  },
+  {
+    category: 'konto',
+    question: 'Hvor kan jeg læse mere om privatliv?',
+    answer:
+      'Du kan læse den fulde privatlivspolitik på hjemmesiden. Sikkerhedssiden forklarer også mere konkret, hvordan vi tænker dataadskillelse, eksport og sletning.',
   },
   {
     category: 'venteliste',
@@ -458,5 +664,41 @@ export const faqs: FaqEntry[] = [
     category: 'venteliste',
     question: 'Jeg fik ikke en bekræftelses-email — hvad gør jeg?',
     answer: 'Tjek lige dit spam-filter først. Kommer den stadig ikke frem efter et par minutter, så skriv til os via supportformularen, så undersøger vi det.',
+  },
+  {
+    category: 'venteliste',
+    question: 'Skal jeg bekræfte min email for at komme på ventelisten?',
+    answer:
+      'Ja. Bekræftelsen hjælper os med at sikre, at emailen er rigtig, og at listen ikke bliver fyldt med forkerte eller uønskede tilmeldinger.',
+  },
+  {
+    category: 'venteliste',
+    question: 'Kan jeg stå på venteliste til både iOS og Android?',
+    answer:
+      'Ja. Hvis du er interesseret i begge platforme, kan du vælge det i ventelisteflowet, så vi ved, hvad du helst vil have besked om.',
+  },
+  {
+    category: 'venteliste',
+    question: 'Får alle adgang på samme tid?',
+    answer:
+      'Ikke nødvendigvis. Hvis vi åbner gradvist, kan nogle få adgang før andre, så vi kan teste stabilitet, feedback og onboarding i et roligt tempo.',
+  },
+  {
+    category: 'venteliste',
+    question: 'Kan jeg afmelde mig ventelisten?',
+    answer:
+      'Ja. Du kan kontakte support, hvis du vil fjernes fra ventelisten, eller hvis din email skal rettes.',
+  },
+  {
+    category: 'venteliste',
+    question: 'Sender I mange emails til ventelisten?',
+    answer:
+      'Nej. Ventelisten er primært til vigtige opdateringer om lancering og adgang. Målet er at holde beskederne relevante og få.',
+  },
+  {
+    category: 'venteliste',
+    question: 'Kan jeg få adgang før lancering?',
+    answer:
+      'Måske. Hvis vi åbner for testbrugere før den brede lancering, bruger vi ventelisten til at finde de første relevante brugere.',
   },
 ];
