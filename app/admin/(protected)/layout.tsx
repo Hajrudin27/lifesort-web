@@ -14,6 +14,22 @@ export const metadata = {
   title: 'Admin',
 };
 
+const ROLE_LABEL = {
+  owner: 'Owner',
+  editor: 'Editor',
+  support: 'Support',
+} as const;
+
+function NavSection({ label }: { label: string }) {
+  return (
+    <div className="mt-6 mb-2 flex items-center gap-2 px-3">
+      <span className="h-px flex-1 bg-white/10" />
+      <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">{label}</p>
+      <span className="h-px flex-1 bg-white/10" />
+    </div>
+  );
+}
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -52,23 +68,26 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <ThemeProvider>
       <CommandPalette role={role} />
-      <aside className="flex w-60 flex-col bg-stone-900 p-4 text-stone-300">
-        <div className="mb-8 flex items-center gap-2 px-2 pt-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 to-rose-600">
-            <span className="text-sm font-bold text-white">L</span>
+      <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-white/10 bg-stone-950 p-4 text-stone-300 shadow-2xl shadow-stone-950/10">
+        <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.04] p-3 shadow-inner shadow-white/[0.03]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 shadow-lg shadow-rose-950/30">
+              <span className="text-sm font-bold text-white">L</span>
+            </div>
+            <div className="min-w-0">
+              <span className="block text-sm font-bold text-white">LifeSort</span>
+              <span className="block text-[11px] font-medium text-stone-500">Admin control</span>
+            </div>
           </div>
-          <span className="text-sm font-bold text-white">LifeSort Admin</span>
         </div>
 
         <SearchTriggerButton />
 
-        <nav className="flex-1 space-y-1">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
           <AdminNavLink href="/admin/dashboard" icon={<LayoutDashboard size={17} />} label="Oversigt" />
           {isOwner && <AdminNavLink href="/admin/launch" icon={<Rocket size={17} />} label="Launch" />}
 
-          <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
-            Projekt
-          </p>
+          <NavSection label="Projekt" />
           {canEditContent && <AdminNavLink href="/admin/timeline" icon={<Milestone size={17} />} label="Tidslinje" />}
           <AdminNavLink href="/admin/activity" icon={<Activity size={17} />} label="Aktivitet" />
           {isOwner && (
@@ -81,18 +100,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
           {canEditContent && (
             <>
-              <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
-                Mad
-              </p>
+              <NavSection label="Mad" />
               <AdminNavLink href="/admin/food/prices" icon={<Tag size={17} />} label="Standardpriser" />
               <AdminNavLink href="/admin/food/duplicates" icon={<Copy size={17} />} label="Dublet-tjek" />
               <AdminNavLink href="/admin/food/offers" icon={<Percent size={17} />} label="Ugens tilbud" />
               <AdminNavLink href="/admin/food/recipes" icon={<BookOpen size={17} />} label="Opskrifter" />
               <AdminNavLink href="/admin/food/preview" icon={<ChefHat size={17} />} label="Forhåndsvis madplan" />
 
-              <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
-                Sundhed
-              </p>
+              <NavSection label="Sundhed" />
               <AdminNavLink href="/admin/health/conditions" icon={<HeartPulse size={17} />} label="Tilstande" />
               <AdminNavLink href="/admin/health/symptoms" icon={<HeartPulse size={17} />} label="Symptomordbog" />
             </>
@@ -100,34 +115,37 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
           {canSeeCustomerData && (
             <>
-              <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
-                Support
-              </p>
+              <NavSection label="Support" />
               <AdminNavLink href="/admin/tickets" icon={<Inbox size={17} />} label="Supportsager" badge={openTicketsCount ?? 0} />
 
-              <p className="mt-5 mb-2 px-3 text-[11px] font-semibold tracking-wider text-stone-500 uppercase">
-                Hjemmeside
-              </p>
+              <NavSection label="Hjemmeside" />
               <AdminNavLink href="/admin/waitlist" icon={<Users size={17} />} label="Venteliste" />
             </>
           )}
         </nav>
 
-        <div className="mt-6 flex items-center gap-3 rounded-xl bg-stone-800/70 p-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-500/20 text-xs font-bold text-rose-300">
-            {initials}
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3 shadow-inner shadow-white/[0.03]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-xs font-bold text-rose-200 ring-1 ring-rose-400/20">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-white">{adminRow.full_name}</p>
+              <p className="mt-0.5 text-[11px] text-stone-500">{ROLE_LABEL[role]}</p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-semibold text-white">{adminRow.full_name}</p>
-            <p className="text-[11px] capitalize text-stone-400">{adminRow.role}</p>
+          <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-stone-600">Session</span>
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <SignOutButton />
+            </div>
           </div>
-          <ThemeToggle />
-          <SignOutButton />
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto p-8">
-        <div className="mx-auto max-w-5xl">
+      <main className="min-w-0 flex-1 overflow-y-auto bg-stone-100/80 dark:bg-stone-950">
+        <div className="mx-auto min-h-screen max-w-6xl px-6 py-8 lg:px-8">
           <AdminUserProvider user={{ id: user.id, name: adminRow.full_name }}>
             {children}
           </AdminUserProvider>
