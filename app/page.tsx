@@ -7,7 +7,7 @@ import { PhoneMockup } from '@/components/phone-mockup';
 import { HeroSubtitle } from '@/components/hero-subtitle';
 import { ScrollReveal } from '@/components/scroll-reveal';
 import { FounderStory } from '@/components/founder-story';
-import { modules } from '@/lib/modules-content';
+import { InteractiveModulePreview } from '@/components/interactive-module-preview';
 import { absoluteUrl, createPageMetadata, defaultDescription, defaultTitle, siteName } from '@/lib/seo';
 
 export const metadata = createPageMetadata({
@@ -87,46 +87,7 @@ export default function Home() {
           </div>
         </section>
 
-                {/* Features */}
-                <section className="bg-[#FBF7F1]">
-          <div className="mx-auto max-w-5xl px-6 py-20">
-            <ScrollReveal>
-              <h2 className="font-display text-center text-3xl font-semibold text-stone-900 sm:text-4xl">
-                Ti dele af din hverdag. Én app.
-              </h2>
-              <p className="mt-2 text-center text-sm text-stone-500">Klik på et modul for at læse mere</p>
-            </ScrollReveal>
-
-            <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-              {modules.map((m, i) => {
-                const Icon = m.icon;
-                return (
-                  <ScrollReveal key={m.slug} delay={i * 60}>
-                    <Link
-                      href={`/modules/${m.slug}`}
-                      className="group flex h-full flex-col rounded-2xl bg-white p-5 transition hover:shadow-md"
-                    >
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${m.tint}`}>
-                        <Icon className="h-5 w-5" strokeWidth={2.2} />
-                      </div>
-                      <h3 className="mt-4 text-sm font-bold text-stone-900">{m.title}</h3>
-                      <p className="mt-1.5 flex-1 text-xs leading-relaxed text-stone-500">{m.tagline}</p>
-                      <span className="mt-3 text-xs font-semibold text-stone-400 transition group-hover:text-stone-900">
-                        Læs mere →
-                      </span>
-                    </Link>
-                    </ScrollReveal>
-                );
-              })}
-            </div>
-
-            <ScrollReveal delay={modules.length * 60} className="mt-8 text-center">
-              <Link href="/appcheck" className="text-sm font-semibold text-rose-600 underline-offset-4 hover:underline">
-                Hvor mange apps bruger du egentlig i dag? →
-              </Link>
-            </ScrollReveal>
-          </div>
-        </section>
+        <InteractiveModulePreview />
         
         <FounderStory />
 
