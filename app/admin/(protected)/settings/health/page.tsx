@@ -13,6 +13,12 @@ import {
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getResendSetupStatus } from '@/lib/resend';
+import {
+  CLOSED_TICKET_MONTHS,
+  UNCONFIRMED_WAITLIST_DAYS,
+  getDataRetentionPreview,
+  type DataRetentionPreview,
+} from '@/lib/data-retention';
 
 type CheckStatus = 'ok' | 'missing' | 'warning';
 
@@ -125,6 +131,104 @@ function SummaryCard({
   );
 }
 
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('da-DK', { dateStyle: 'medium' }).format(new Date(value));
+}
+
+function RetentionPreviewPanel({ preview }: { preview: DataRetentionPreview | null }) {
+  const hasFailures = preview ? Object.values(preview.failed).some(Boolean) : true;
+  const total = preview
+    ? preview.wouldDelete.tickets + preview.wouldDelete.waitlistSignups + preview.wouldDelete.orphanedAttachments
+    : 0;
+  const metrics = preview
+    ? [
+        {
+          label: 'Lukkede supportsager',
+          value: preview.wouldDelete.tickets,
+          detail: `Ældre end ${CLOSED_TICKET_MONTHS} måneder · før ${formatDate(preview.cutoffs.tickets)}`,
+          failed: preview.failed.tickets,
+          error: preview.errors.tickets,
+        },
+        {
+          label: 'Ubekræftet venteliste',
+          value: preview.wouldDelete.waitlistSignups,
+          detail: `Ældre end ${UNCONFIRMED_WAITLIST_DAYS} dage · før ${formatDate(preview.cutoffs.waitlist)}`,
+          failed: preview.failed.waitlistSignups,
+          error: preview.errors.waitlistSignups,
+        },
+        {
+          label: 'Forældreløse attachments',
+          value: preview.wouldDelete.orphanedAttachments,
+          detail: 'Filer uden ejerkonto i attachments-bucket',
+          failed: preview.failed.orphanedAttachments,
+          error: preview.errors.orphanedAttachments,
+        },
+      ]
+    : [];
+
+  return (
+    <section className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+              <Database size={15} />
+            </div>
+            <h2 className="text-sm font-bold text-stone-900 dark:text-stone-100">Data-retention dry run</h2>
+          </div>
+          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-stone-500 dark:text-stone-400">
+            Viser hvad den daglige oprydning ville slette lige nu, uden at fjerne noget.
+          </p>
+        </div>
+        <div
+          className={`rounded-xl px-3 py-2 text-right ${
+            hasFailures
+              ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400'
+              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
+          }`}
+        >
+          <p className="text-2xl font-bold leading-none">{total}</p>
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-wide">
+            {hasFailures ? 'Kræver tjek' : 'Ville blive slettet'}
+          </p>
+        </div>
+      </div>
+
+      {preview ? (
+        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
+          {metrics.map((metric) => {
+            const MetricIcon = metric.failed ? AlertTriangle : CheckCircle2;
+            const tone = metric.failed
+              ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400'
+              : metric.value > 0
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
+                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400';
+
+            return (
+              <div key={metric.label} className="rounded-xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-800 dark:bg-stone-950/40">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{metric.label}</p>
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${tone}`}>
+                    <MetricIcon size={15} />
+                  </div>
+                </div>
+                <p className="mt-3 text-3xl font-bold text-stone-900 dark:text-stone-100">{metric.value}</p>
+                <p className="mt-1 text-xs leading-relaxed text-stone-500 dark:text-stone-400">
+                  {metric.error ?? metric.detail}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+          Data-retention kunne ikke forhåndsvises, fordi Supabase service role eller URL mangler.
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default async function EnvironmentHealthPage() {
   const resendSetup = await getResendSetupStatus();
   const envChecks: Check[] = [
@@ -159,6 +263,7 @@ export default async function EnvironmentHealthPage() {
   let databaseChecks: Check[] = [];
   let contentChecks: Check[] = [];
   let storageChecks: Check[] = [];
+  let dataRetentionPreview: DataRetentionPreview | null = null;
   try {
     const supabase = await createClient();
     const { error } = await supabase.from('admin_users').select('id', { count: 'exact', head: true });
@@ -181,6 +286,7 @@ export default async function EnvironmentHealthPage() {
         pricesCount,
         conditionsCount,
         symptomsCount,
+        retentionPreview,
       ] = await Promise.all([
         admin.from('support_tickets').select('id, status, priority, category, internal_note, updated_at').limit(1),
         admin.from('waitlist_signups').select('id, email, platform, confirmed, confirm_token, created_at').limit(1),
@@ -194,7 +300,10 @@ export default async function EnvironmentHealthPage() {
         admin.from('global_standard_prices').select('id', { count: 'exact', head: true }),
         admin.from('health_conditions').select('id', { count: 'exact', head: true }),
         admin.from('symptom_glossary').select('id', { count: 'exact', head: true }),
+        getDataRetentionPreview(admin),
       ]);
+
+      dataRetentionPreview = retentionPreview;
 
       databaseChecks = [
         boolCheck(
@@ -328,7 +437,7 @@ export default async function EnvironmentHealthPage() {
     },
     {
       title: 'Automatik',
-      description: 'Email og ugentlige admin-digests',
+      description: 'Email, data-retention og ugentlige admin-digests',
       icon: MailCheck,
       checks: cronChecks,
     },
@@ -369,6 +478,8 @@ export default async function EnvironmentHealthPage() {
         <SummaryCard label="Bør tjekkes" value={warningCount.toString()} detail="Ikke blokerende, men værd at rydde op" icon={AlertTriangle} tone="from-amber-500 to-amber-600" />
         <SummaryCard label="Kritisk" value={missingCount.toString()} detail="Kan blokere features eller drift" icon={XCircle} tone="from-red-500 to-red-600" />
       </div>
+
+      <RetentionPreviewPanel preview={dataRetentionPreview} />
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {groups.map((group) => {

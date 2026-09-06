@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { captureDatabaseError } from '@/lib/observability';
 import { logActivity } from '@/lib/activity-log';
+import {
+  CLOSED_TICKET_MONTHS,
+  UNCONFIRMED_WAITLIST_DAYS,
+  dataRetentionCutoffs,
+  getDataRetentionPreview,
+  sweepOrphanedAttachments,
+} from '@/lib/data-retention';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,50 +29,6 @@ export const dynamic = 'force-dynamic';
  * Kald med ?dryRun=1 for at se hvad der ville blive slettet uden at slette noget.
  */
 
-const CLOSED_TICKET_MONTHS = 12;
-const UNCONFIRMED_WAITLIST_DAYS = 30;
-
-function monthsAgo(months: number): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() - months);
-  return d.toISOString();
-}
-
-function daysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString();
-}
-
-/**
- * Filer i attachments-bucket'en hvis ejer ikke længere findes.
- *
- * Databasen rydder sig selv når en konto slettes, men storage er et separat lag: rækken i
- * public.attachments forsvinder, filen gør ikke. Appen sletter sine egne filer inden den
- * beder om at få kontoen slettet, men det er klientens ansvar og kan fejle halvvejs. Her
- * er det serveren der garanterer, at der ikke ligger private dokumenter tilbage fra en
- * bruger der har bedt om at blive glemt.
- */
-async function sweepOrphanedAttachments(supabase: ReturnType<typeof createAdminClient>) {
-  const { data: orphans, error } = await supabase.rpc('orphaned_attachment_paths', { p_limit: 500 });
-
-  if (error) {
-    captureDatabaseError(error, { route: 'cron-data-retention-orphan-lookup' });
-    return { removed: 0, failed: true };
-  }
-
-  const paths = (orphans ?? []).map((row: { path: string }) => row.path);
-  if (paths.length === 0) return { removed: 0, failed: false };
-
-  const { error: removeError } = await supabase.storage.from('attachments').remove(paths);
-  if (removeError) {
-    captureDatabaseError(removeError, { route: 'cron-data-retention-orphan-remove' });
-    return { removed: 0, failed: true };
-  }
-
-  return { removed: paths.length, failed: false };
-}
-
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -75,43 +38,24 @@ export async function GET(request: Request) {
   const dryRun = new URL(request.url).searchParams.get('dryRun') === '1';
   const supabase = createAdminClient();
 
-  const ticketCutoff = monthsAgo(CLOSED_TICKET_MONTHS);
-  const waitlistCutoff = daysAgo(UNCONFIRMED_WAITLIST_DAYS);
-
   if (dryRun) {
-    const [tickets, waitlist] = await Promise.all([
-      supabase
-        .from('support_tickets')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'closed')
-        .lt('updated_at', ticketCutoff),
-      supabase
-        .from('waitlist_signups')
-        .select('id', { count: 'exact', head: true })
-        .eq('confirmed', false)
-        .lt('created_at', waitlistCutoff),
-    ]);
-
-    const { data: orphans } = await supabase.rpc('orphaned_attachment_paths', { p_limit: 500 });
+    const preview = await getDataRetentionPreview(supabase);
 
     return NextResponse.json({
       ok: true,
       dryRun: true,
-      wouldDelete: {
-        tickets: tickets.count ?? 0,
-        waitlistSignups: waitlist.count ?? 0,
-        orphanedAttachments: (orphans ?? []).length,
-      },
-      cutoffs: { tickets: ticketCutoff, waitlist: waitlistCutoff },
+      ...preview,
     });
   }
+
+  const cutoffs = dataRetentionCutoffs();
 
   // Sletningerne køres hver for sig, så en fejl i den ene ikke aflyser den anden.
   const { data: deletedTickets, error: ticketError } = await supabase
     .from('support_tickets')
     .delete()
     .eq('status', 'closed')
-    .lt('updated_at', ticketCutoff)
+    .lt('updated_at', cutoffs.tickets)
     .select('id');
 
   if (ticketError) {
@@ -122,7 +66,7 @@ export async function GET(request: Request) {
     .from('waitlist_signups')
     .delete()
     .eq('confirmed', false)
-    .lt('created_at', waitlistCutoff)
+    .lt('created_at', cutoffs.waitlist)
     .select('id');
 
   if (waitlistError) {
