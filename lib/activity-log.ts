@@ -24,7 +24,8 @@ export type ActivityEntityType =
 export async function logActivity(
   supabase: SupabaseClient,
   params: {
-    actorId: string;
+    /** null når handlingen ikke kom fra et menneske, men fra en planlagt oprydning. */
+    actorId: string | null;
     actorName: string;
     action: ActivityAction;
     entityType: ActivityEntityType;
