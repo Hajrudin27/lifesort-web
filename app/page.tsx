@@ -7,6 +7,7 @@ import { PhoneMockup } from '@/components/phone-mockup';
 import { HeroSubtitle } from '@/components/hero-subtitle';
 import { ScrollReveal } from '@/components/scroll-reveal';
 import { FounderStory } from '@/components/founder-story';
+import { HowItWorks } from '@/components/how-it-works';
 import { InteractiveModulePreview } from '@/components/interactive-module-preview';
 import { TrustBand } from '@/components/trust-band';
 import { absoluteUrl, createPageMetadata, defaultDescription, defaultTitle, siteName } from '@/lib/seo';
@@ -89,6 +90,7 @@ export default function Home() {
         </section>
 
         <InteractiveModulePreview />
+        <HowItWorks />
         <TrustBand />
         
         <FounderStory />
