@@ -20,6 +20,7 @@ export async function POST(request: Request) {
   if (platform !== 'ios' && platform !== 'android') {
     return NextResponse.json({ error: 'Ugyldig platform' }, { status: 400 });
   }
+  const cleanEmail = email.trim().toLowerCase();
 
   const ip = getClientIp(request);
   const { allowed } = checkRateLimit(`waitlist:${ip}`, 8, 15 * 60 * 1000); // 8 per 15 min
@@ -31,15 +32,15 @@ export async function POST(request: Request) {
   }
 
   // Samme grund som i submit-ticket: bekræftelsesmailen går til den indtastede adresse.
-  const { allowed: emailAllowed } = checkRateLimit(emailKey('waitlist-email', email), 3, 60 * 60 * 1000);
+  const { allowed: emailAllowed } = checkRateLimit(emailKey('waitlist-email', cleanEmail), 3, 60 * 60 * 1000);
   if (!emailAllowed) {
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, emailSent: false });
   }
 
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('waitlist_signups')
-    .insert({ email: email.trim(), platform })
+    .insert({ email: cleanEmail, platform })
     .select('confirm_token')
     .single();
 
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
   // no new confirmation email is sent for an already-existing signup.
   if (error) {
     if (error.code === '23505') {
-      return NextResponse.json({ ok: true });
+      return NextResponse.json({ ok: true, emailSent: false });
     }
     Sentry.captureException(error, { tags: { route: 'join-waitlist' } });
     return NextResponse.json({ error: 'Kunne ikke tilmelde' }, { status: 500 });
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
 
   const confirmUrl = `${siteUrl}/api/confirm-waitlist?token=${data.confirm_token}`;
   const emailResult = await sendEmail({
-    to: email.trim(),
+    to: cleanEmail,
     subject: 'Bekræft din tilmelding til LifeSort',
     html: `
       <p>Hej!</p>
@@ -73,5 +74,5 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, emailSent: emailResult.ok });
 }
