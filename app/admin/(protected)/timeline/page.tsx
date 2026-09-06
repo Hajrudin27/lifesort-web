@@ -128,7 +128,11 @@ export default function TimelinePage() {
     setIsLoading(false);
   }, [supabase, showToast]);
 
-  useEffect(() => { fetchRows(); }, [fetchRows]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      fetchRows();
+    });
+  }, [fetchRows]);
 
   const ownerFilteredRows = useMemo(
     () => (ownerFilter === 'all' ? rows : rows.filter((r) => r.owners.includes(ownerFilter))),

@@ -78,62 +78,67 @@ export function CommandPalette({ role }: { role: AdminRole }) {
   // Søger på tværs af det faktiske indhold (priser, opskrifter, supportsager) — ikke kun
   // sidenavne — når man har skrevet nok til, at det giver mening.
   useEffect(() => {
-    const q = debouncedQuery.trim();
-    if (q.length < 2) {
-      setContentResults([]);
-      return;
-    }
-
     let cancelled = false;
-    setIsSearchingContent(true);
 
-    (async () => {
-      const [pricesRes, recipesRes, ticketsRes] = await Promise.all([
-        supabase
-          .from('products')
-          .select('id, name, prices:global_standard_prices(id, store, price)')
-          .ilike('name', `%${q}%`)
-          .limit(4),
-        supabase.from('global_recipes').select('id, name').ilike('name', `%${q}%`).limit(4),
-        supabase.from('support_tickets').select('id, subject, name').ilike('subject', `%${q}%`).limit(4),
-      ]);
-
+    queueMicrotask(() => {
+      const q = debouncedQuery.trim();
       if (cancelled) return;
+      if (q.length < 2) {
+        setContentResults([]);
+        setIsSearchingContent(false);
+        return;
+      }
 
-      const results: ContentResult[] = [
-        ...((pricesRes.data ?? []) as PriceSearchRow[]).map((p) => {
-          const stores = p.prices.map((price) => price.store);
-          const lowestPrice = p.prices.reduce<number | null>(
-            (lowest, price) => (lowest === null || price.price < lowest ? price.price : lowest),
-            null
-          );
+      setIsSearchingContent(true);
 
-          return {
-            label: p.name,
-            description: lowestPrice === null
-              ? 'Vare uden standardpris'
-              : `Standardpris · ${stores.slice(0, 2).join(', ')}${stores.length > 2 ? ` +${stores.length - 2}` : ''} · fra ${lowestPrice.toFixed(2)} kr.`,
-            href: '/admin/food/prices',
-            icon: Tag,
-          };
-        }),
-        ...(recipesRes.data ?? []).map((r) => ({
-          label: r.name,
-          description: 'Opskrift',
-          href: '/admin/food/recipes',
-          icon: BookOpen,
-        })),
-        ...(ticketsRes.data ?? []).map((t) => ({
-          label: t.subject,
-          description: `Supportsag · ${t.name}`,
-          href: '/admin/tickets',
-          icon: Inbox,
-        })),
-      ];
+      (async () => {
+        const [pricesRes, recipesRes, ticketsRes] = await Promise.all([
+          supabase
+            .from('products')
+            .select('id, name, prices:global_standard_prices(id, store, price)')
+            .ilike('name', `%${q}%`)
+            .limit(4),
+          supabase.from('global_recipes').select('id, name').ilike('name', `%${q}%`).limit(4),
+          supabase.from('support_tickets').select('id, subject, name').ilike('subject', `%${q}%`).limit(4),
+        ]);
 
-      setContentResults(results);
-      setIsSearchingContent(false);
-    })();
+        if (cancelled) return;
+
+        const results: ContentResult[] = [
+          ...((pricesRes.data ?? []) as PriceSearchRow[]).map((p) => {
+            const stores = p.prices.map((price) => price.store);
+            const lowestPrice = p.prices.reduce<number | null>(
+              (lowest, price) => (lowest === null || price.price < lowest ? price.price : lowest),
+              null
+            );
+
+            return {
+              label: p.name,
+              description: lowestPrice === null
+                ? 'Vare uden standardpris'
+                : `Standardpris · ${stores.slice(0, 2).join(', ')}${stores.length > 2 ? ` +${stores.length - 2}` : ''} · fra ${lowestPrice.toFixed(2)} kr.`,
+              href: '/admin/food/prices',
+              icon: Tag,
+            };
+          }),
+          ...(recipesRes.data ?? []).map((r) => ({
+            label: r.name,
+            description: 'Opskrift',
+            href: '/admin/food/recipes',
+            icon: BookOpen,
+          })),
+          ...(ticketsRes.data ?? []).map((t) => ({
+            label: t.subject,
+            description: `Supportsag · ${t.name}`,
+            href: '/admin/tickets',
+            icon: Inbox,
+          })),
+        ];
+
+        setContentResults(results);
+        setIsSearchingContent(false);
+      })();
+    });
 
     return () => { cancelled = true; };
   }, [debouncedQuery, supabase]);
@@ -175,10 +180,6 @@ export function CommandPalette({ role }: { role: AdminRole }) {
     if (isOpen) setTimeout(() => inputRef.current?.focus(), 10);
   }, [isOpen]);
 
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [query]);
-
   if (!isOpen) return null;
 
   return (
@@ -193,7 +194,10 @@ export function CommandPalette({ role }: { role: AdminRole }) {
             <input
               ref={inputRef}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setActiveIndex(0);
+              }}
               placeholder="Søg sider, priser, opskrifter, supportsager..."
               className="flex-1 bg-transparent text-sm text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100"
               onKeyDown={(e) => {

@@ -89,7 +89,11 @@ export default function MealPlanPreviewPage() {
     setIsLoadingData(false);
   }, [supabase, showToast]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      fetchData();
+    });
+  }, [fetchData]);
 
   const toggleStore = (store: string) => {
     setSelectedStores((prev) => (prev.includes(store) ? prev.filter((s) => s !== store) : [...prev, store]));

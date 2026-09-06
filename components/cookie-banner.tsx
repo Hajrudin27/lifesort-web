@@ -9,8 +9,10 @@ export function CookieBanner() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const consent = window.localStorage.getItem(STORAGE_KEY);
-    if (!consent) setIsVisible(true);
+    queueMicrotask(() => {
+      const consent = window.localStorage.getItem(STORAGE_KEY);
+      if (!consent) setIsVisible(true);
+    });
   }, []);
 
   const accept = () => {

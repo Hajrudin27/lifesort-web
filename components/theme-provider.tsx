@@ -12,8 +12,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === 'dark' || stored === 'light') setTheme(stored);
+    queueMicrotask(() => {
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      if (stored === 'dark' || stored === 'light') setTheme(stored);
+    });
   }, []);
 
   const toggleTheme = useCallback(() => {

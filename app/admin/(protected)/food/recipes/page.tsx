@@ -97,8 +97,16 @@ export default function RecipesPage() {
     setIsLoading(false);
   }, [supabase, debouncedSearch, mealFilter, page, showToast]);
 
-  useEffect(() => { fetchRows(); }, [fetchRows]);
-  useEffect(() => { setPage(0); }, [debouncedSearch, mealFilter]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      fetchRows();
+    });
+  }, [fetchRows]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      setPage(0);
+    });
+  }, [debouncedSearch, mealFilter]);
 
   const resetForm = () => {
     setEditingId(null); setName(''); setMealType('dinner');

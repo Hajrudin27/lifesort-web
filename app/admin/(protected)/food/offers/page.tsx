@@ -89,9 +89,21 @@ export default function OffersOverviewPage() {
     setIsLoading(false);
   }, [supabase, debouncedSearch, storeFilter, statusFilter, page, showToast]);
 
-  useEffect(() => { fetchStores(); }, [fetchStores]);
-  useEffect(() => { fetchRows(); }, [fetchRows]);
-  useEffect(() => { setPage(0); }, [debouncedSearch, storeFilter, statusFilter]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      fetchStores();
+    });
+  }, [fetchStores]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      fetchRows();
+    });
+  }, [fetchRows]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      setPage(0);
+    });
+  }, [debouncedSearch, storeFilter, statusFilter]);
 
   const handleDelete = (row: OfferRow) => {
     setRows((prev) => prev.filter((r) => r.id !== row.id));

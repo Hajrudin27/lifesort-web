@@ -48,7 +48,11 @@ export default function SymptomGlossaryPage() {
     setIsLoading(false);
   }, [supabase, showToast]);
 
-  useEffect(() => { fetchRows(); }, [fetchRows]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      fetchRows();
+    });
+  }, [fetchRows]);
 
   const filteredRows = rows.filter(
     (r) =>

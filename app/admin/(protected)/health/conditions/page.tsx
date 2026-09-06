@@ -66,7 +66,11 @@ export default function HealthConditionsPage() {
     setIsLoading(false);
   }, [supabase, showToast]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      fetchAll();
+    });
+  }, [fetchAll]);
 
   const filteredRows = rows.filter(
     (r) => !debouncedSearch.trim() || r.name_da.toLowerCase().includes(debouncedSearch.trim().toLowerCase())

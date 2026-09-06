@@ -48,7 +48,11 @@ export default function PriceDuplicatesPage() {
     setIsLoading(false);
   }, [supabase, showToast]);
 
-  useEffect(() => { scan(); }, [scan]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      scan();
+    });
+  }, [scan]);
 
   const handleMerge = async (source: ProductForDuplicateCheck, target: ProductForDuplicateCheck) => {
     const ok = await confirm({

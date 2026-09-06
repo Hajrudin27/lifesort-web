@@ -101,7 +101,11 @@ export default function ProductsPage() {
     setIsLoading(false);
   }, [supabase, showToast]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      fetchAll();
+    });
+  }, [fetchAll]);
 
   const filteredProducts = products.filter(
     (p) => !debouncedSearch.trim() || p.name.toLowerCase().includes(debouncedSearch.trim().toLowerCase())
