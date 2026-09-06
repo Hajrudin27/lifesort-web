@@ -20,6 +20,7 @@ import { useToast } from '@/components/toast-provider';
 // Kun admin-styret indhold. Almindelige brugeres personlige data ligger under RLS
 // og skal ikke kunne eksporteres fra admin-panelet.
 const EXPORT_TABLES = [
+  { name: 'products', label: 'Varer', description: 'Varenavne som standardpriser og tilbud refererer til' },
   { name: 'global_standard_prices', label: 'Standardpriser', description: 'Basispriser på varer på tværs af butikker' },
   { name: 'global_offers', label: 'Ugens tilbud', description: 'Aktive, kommende og udløbne tilbud' },
   { name: 'global_recipes', label: 'Opskrifter', description: 'Opskriftsbiblioteket til madplanen' },
