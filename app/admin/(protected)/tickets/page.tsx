@@ -57,6 +57,11 @@ type TicketUpdateResponse = {
   row?: TicketRow;
 };
 
+type EmailSendResponse = {
+  error?: string;
+  setupHint?: string;
+};
+
 const PAGE_SIZE = 20;
 
 const STATUS_LABEL: Record<TicketStatus, string> = {
@@ -137,6 +142,12 @@ function isMissingSupportSchema(error: { code?: string; message?: string } | nul
   );
 }
 
+async function emailErrorMessage(res: Response, fallback: string) {
+  const body = await res.json().catch(() => ({})) as EmailSendResponse;
+  if (!body.error) return fallback;
+  return body.setupHint ? `${body.error} ${body.setupHint}` : body.error;
+}
+
 function StatCard({
   label,
   value,
@@ -186,6 +197,7 @@ export default function TicketsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingMeta, setIsSavingMeta] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const fetchStats = useCallback(async () => {
     const [openRes, waitingRes, urgentRes, answeredTodayRes] = await Promise.all([
@@ -252,6 +264,7 @@ export default function TicketsPage() {
     setPriorityValue(row.priority ?? 'normal');
     setCategoryValue(row.category ?? 'general');
     setInternalNote(row.internal_note ?? '');
+    setEmailError(null);
   };
 
   const closeModal = () => {
@@ -261,6 +274,7 @@ export default function TicketsPage() {
     setCategoryValue('general');
     setInternalNote('');
     setShowHistory(false);
+    setEmailError(null);
   };
 
   const updateTicket = async (payload: {
@@ -286,6 +300,7 @@ export default function TicketsPage() {
   const handleSaveReply = async () => {
     if (!activeTicket || replyText.trim().length === 0) return;
     setIsSaving(true);
+    setEmailError(null);
     try {
       await updateTicket({ id: activeTicket.id, adminReply: replyText.trim() });
     } catch (err) {
@@ -304,9 +319,12 @@ export default function TicketsPage() {
       if (res.ok) {
         showToast('Svar gemt og sendt til brugeren.');
       } else {
+        const message = await emailErrorMessage(res, 'Email kunne ikke sendes.');
+        setEmailError(message);
         showToast('Svar gemt, men email kunne ikke sendes.', 'error');
       }
     } catch {
+      setEmailError('Kunne ikke kontakte email-endpointet.');
       showToast('Svar gemt, men email kunne ikke sendes.', 'error');
     }
     setIsSaving(false);
@@ -321,14 +339,22 @@ export default function TicketsPage() {
   const handleResendEmail = async () => {
     if (!activeTicket) return;
     setIsResending(true);
+    setEmailError(null);
     try {
       const res = await fetch('/api/send-ticket-reply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticketId: activeTicket.id }),
       });
-      showToast(res.ok ? 'Email sendt igen.' : 'Kunne ikke sende email.', res.ok ? undefined : 'error');
+      if (res.ok) {
+        showToast('Email sendt igen.');
+      } else {
+        const message = await emailErrorMessage(res, 'Kunne ikke sende email.');
+        setEmailError(message);
+        showToast('Kunne ikke sende email.', 'error');
+      }
     } catch {
+      setEmailError('Kunne ikke kontakte email-endpointet.');
       showToast('Kunne ikke sende email.', 'error');
     }
     setIsResending(false);
@@ -663,6 +689,13 @@ export default function TicketsPage() {
                 className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:ring-emerald-900/30"
                 placeholder="Skriv dit svar her..." />
             </div>
+
+            {emailError && (
+              <div className="mt-4 flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>{emailError}</p>
+              </div>
+            )}
 
             <div className="mt-6 flex items-center justify-between">
               <div className="flex items-center gap-3">

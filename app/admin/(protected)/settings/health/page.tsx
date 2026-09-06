@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { getResendSetupStatus } from '@/lib/resend';
 
 type CheckStatus = 'ok' | 'missing' | 'warning';
 
@@ -92,7 +93,7 @@ function CheckRow({ check }: { check: Check }) {
             {meta.label}
           </span>
         </div>
-        <p className="mt-0.5 truncate text-xs text-stone-500 dark:text-stone-400">{check.detail}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-stone-500 dark:text-stone-400">{check.detail}</p>
       </div>
     </div>
   );
@@ -124,6 +125,7 @@ function SummaryCard({
 }
 
 export default async function EnvironmentHealthPage() {
+  const resendSetup = await getResendSetupStatus();
   const envChecks: Check[] = [
     envCheck('NEXT_PUBLIC_SUPABASE_URL', 'Supabase URL'),
     envCheck('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'Supabase anon-nøgle'),
@@ -138,10 +140,10 @@ export default async function EnvironmentHealthPage() {
   const fromEmail = process.env.RESEND_FROM_EMAIL;
   envChecks.push({
     label: 'Verificeret afsenderadresse',
-    status: fromEmail ? 'ok' : 'warning',
+    status: fromEmail ? 'ok' : 'missing',
     detail: fromEmail
       ? 'RESEND_FROM_EMAIL er sat'
-      : 'RESEND_FROM_EMAIL er ikke sat. Fallback kan kun sende begrænset via Resend.',
+      : 'RESEND_FROM_EMAIL er ikke sat. Support-mails kan ikke sendes til rigtige modtagere.',
   });
 
   const sentryOrg = process.env.SENTRY_ORG;
@@ -232,16 +234,20 @@ export default async function EnvironmentHealthPage() {
   const cronChecks: Check[] = [
     boolCheck(
       'Ugentlig digest',
-      Boolean(process.env.CRON_SECRET && process.env.RESEND_API_KEY),
-      'Cron-secret og Resend API-nøgle er sat',
-      'CRON_SECRET eller RESEND_API_KEY mangler'
+      Boolean(process.env.CRON_SECRET && resendSetup.status === 'ok'),
+      'Cron-secret og Resend-afsender er klar',
+      'CRON_SECRET eller Resend-afsender mangler'
     ),
+    {
+      label: 'Resend-domæne',
+      status: resendSetup.status,
+      detail: resendSetup.detail,
+    },
     boolCheck(
       'Email-afsender',
-      Boolean(process.env.RESEND_FROM_EMAIL),
+      resendSetup.hasFromEmail,
       'Afsenderdomæne er sat via RESEND_FROM_EMAIL',
-      'RESEND_FROM_EMAIL mangler. Support-mails kan være begrænset.',
-      'warning'
+      'RESEND_FROM_EMAIL mangler. Support-mails kan ikke sendes til rigtige modtagere.'
     ),
     boolCheck(
       'Fejlsporing',

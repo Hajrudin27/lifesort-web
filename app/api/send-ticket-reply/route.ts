@@ -47,7 +47,14 @@ export async function POST(request: Request) {
 
   if (!emailResult.ok) {
     Sentry.captureMessage(`Ticket reply email failed: ${emailResult.error}`, 'error');
-    return NextResponse.json({ error: emailResult.error }, { status: 502 });
+    return NextResponse.json(
+      {
+        error: emailResult.error,
+        code: emailResult.code,
+        setupHint: emailResult.setupHint,
+      },
+      { status: 502 }
+    );
   }
 
   return NextResponse.json({ ok: true });
