@@ -1,11 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ArrowRight, CheckCircle2, ChevronRight } from 'lucide-react';
 import { modules } from '@/lib/modules-content';
-
-const FEATURED_MODULE_SLUGS = ['madplan', 'oekonomi', 'karriere', 'cyklus', 'vaner', 'hjemmet'];
 
 const SCREEN_DETAILS: Record<string, { eyebrow: string; headline: string; metric: string; subMetric: string; tasks: string[] }> = {
   madplan: {
@@ -50,15 +48,39 @@ const SCREEN_DETAILS: Record<string, { eyebrow: string; headline: string; metric
     subMetric: 'opgaver klaret',
     tasks: ['Støvsuge - Walids tur', 'Indkøbsliste delt', 'Rotering aktiv'],
   },
+  livsmaal: {
+    eyebrow: 'Livsmål',
+    headline: 'Målet tager form',
+    metric: '72%',
+    subMetric: 'af opsparingsmålet',
+    tasks: ['Delmål: billetter booket', 'Fremdrift følges over tid', 'Adskilt fra dagens liste'],
+  },
+  goeremaal: {
+    eyebrow: 'I dag',
+    headline: '2 af 5 klaret',
+    metric: '2/5',
+    subMetric: 'gøremål i dag',
+    tasks: ['Ring til tandlægen — høj', 'Aflever pakke — i morgen', 'Resten venter pænt'],
+  },
+  rejser: {
+    eyebrow: 'Om 12 dage',
+    headline: 'Turen er planlagt',
+    metric: '6/10',
+    subMetric: 'pakket',
+    tasks: ['Pas og billetter tjekket', 'Pakkeliste delt', 'Påmindelse før afgang'],
+  },
+  garantier: {
+    eyebrow: 'Garantier',
+    headline: 'Udløb om 45 dage',
+    metric: '45',
+    subMetric: 'dage til udløb',
+    tasks: ['Vaskemaskine — kvittering gemt', 'Påmindelse før udløb', 'Ét sted at slå op'],
+  },
 };
 
 export function InteractiveModulePreview() {
-  const featuredModules = useMemo(
-    () => FEATURED_MODULE_SLUGS.map((slug) => modules.find((module) => module.slug === slug)).filter(Boolean),
-    []
-  );
-  const [activeSlug, setActiveSlug] = useState(featuredModules[0]?.slug ?? modules[0].slug);
-  const active = featuredModules.find((module) => module?.slug === activeSlug) ?? featuredModules[0] ?? modules[0];
+  const [activeSlug, setActiveSlug] = useState(modules[0].slug);
+  const active = modules.find((module) => module.slug === activeSlug) ?? modules[0];
   const Icon = active.icon;
   const screen = SCREEN_DETAILS[active.slug] ?? {
     eyebrow: 'LifeSort',
@@ -79,12 +101,11 @@ export function InteractiveModulePreview() {
               Se hvordan LifeSort samler hverdagen, modul for modul.
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-stone-600">
-              Skift mellem de vigtigste områder og få en hurtig fornemmelse af, hvordan appen føles i brug.
+              Vælg et modul for at se, hvordan det føles i brug — og klik videre, hvis du vil læse mere om netop det.
             </p>
 
             <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {featuredModules.map((module) => {
-                if (!module) return null;
+              {modules.map((module) => {
                 const ModuleIcon = module.icon;
                 const isActive = module.slug === active.slug;
 
@@ -190,26 +211,6 @@ export function InteractiveModulePreview() {
           </div>
         </div>
 
-        <div className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {modules.map((module) => {
-            const ModuleIcon = module.icon;
-            return (
-              <Link
-                key={module.slug}
-                href={`/modules/${module.slug}`}
-                className="group flex min-h-28 flex-col rounded-2xl bg-white p-4 shadow-sm shadow-stone-900/5 transition hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${module.tint}`}>
-                  <ModuleIcon className="h-4 w-4" strokeWidth={2.2} />
-                </span>
-                <span className="mt-3 text-sm font-bold text-stone-900">{module.title}</span>
-                <span className="mt-auto pt-3 text-xs font-semibold text-stone-400 transition group-hover:text-stone-900">
-                  Læs mere
-                </span>
-              </Link>
-            );
-          })}
-        </div>
       </div>
     </section>
   );
