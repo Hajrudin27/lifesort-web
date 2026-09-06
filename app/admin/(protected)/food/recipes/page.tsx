@@ -13,6 +13,7 @@ import { EntityHistoryModal } from '@/components/entity-history-modal';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner';
 type Ingredient = { name: string; amount: string };
+type ImageUploadMeta = { name: string; size: number } | null;
 
 type RecipeRow = {
   id: string;
@@ -31,6 +32,8 @@ type RecipeRow = {
 };
 
 const PAGE_SIZE = 20;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner'];
 const MEAL_LABELS: Record<MealType, string> = { breakfast: 'Morgenmad', lunch: 'Frokost', dinner: 'Aftensmad' };
 const MEAL_COLORS: Record<MealType, string> = {
@@ -41,6 +44,11 @@ const MEAL_COLORS: Record<MealType, string> = {
 
 function emptyIngredient(): Ingredient {
   return { name: '', amount: '' };
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function RecipesPage() {
@@ -71,6 +79,7 @@ export default function RecipesPage() {
   const [fat, setFat] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageUploadMeta, setImageUploadMeta] = useState<ImageUploadMeta>(null);
   const [published, setPublished] = useState(true);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -112,7 +121,7 @@ export default function RecipesPage() {
     setEditingId(null); setName(''); setMealType('dinner');
     setIngredients([emptyIngredient()]); setMinutes(''); setInstructions('');
     setCalories(''); setProtein(''); setCarbs(''); setFat(''); setTagsInput('');
-    setImageUrl(null); setPublished(true); setShowForm(false);
+    setImageUrl(null); setImageUploadMeta(null); setPublished(true); setShowForm(false);
   };
 
   const startEdit = (row: RecipeRow) => {
@@ -128,6 +137,7 @@ export default function RecipesPage() {
     setFat(row.fat?.toString() ?? '');
     setTagsInput(row.tags.join(', '));
     setImageUrl(row.image_url);
+    setImageUploadMeta(null);
     setPublished(row.published);
     setShowForm(true);
   };
@@ -141,25 +151,45 @@ export default function RecipesPage() {
   const removeIngredientRow = (index: number) => setIngredients((prev) => prev.filter((_, i) => i !== index));
 
   const handleImageSelect = async (file: File) => {
-    setIsUploadingImage(true);
-    const compressed = await compressImage(file, { maxDimension: 1600, quality: 0.75 });
-    const ext = compressed.name.split('.').pop() ?? 'jpg';
-    const path = `${crypto.randomUUID()}.${ext}`;
-
-    const { error } = await supabase.storage.from('recipe-images').upload(path, compressed);
-    if (error) {
-      showToast('Kunne ikke uploade billedet.', 'error');
-      setIsUploadingImage(false);
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      showToast('Billedet skal være JPG, PNG eller WebP.', 'error');
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      showToast('Billedet må højst fylde 10 MB.', 'error');
       return;
     }
 
-    const { data } = supabase.storage.from('recipe-images').getPublicUrl(path);
-    setImageUrl(data.publicUrl);
-    setIsUploadingImage(false);
+    setIsUploadingImage(true);
+    setImageUploadMeta({ name: file.name, size: file.size });
+    try {
+      const compressed = await compressImage(file, { maxDimension: 1600, quality: 0.75 });
+      const path = `recipes/${crypto.randomUUID()}.jpg`;
+
+      const { error } = await supabase.storage.from('recipe-images').upload(path, compressed, {
+        cacheControl: '31536000',
+        contentType: compressed.type || 'image/jpeg',
+      });
+      if (error) {
+        showToast(`Kunne ikke uploade billedet: ${error.message}`, 'error');
+        setImageUploadMeta(null);
+        return;
+      }
+
+      const { data } = supabase.storage.from('recipe-images').getPublicUrl(path);
+      setImageUrl(data.publicUrl);
+      setImageUploadMeta({ name: file.name, size: compressed.size });
+      showToast('Billede uploadet.');
+    } catch (err) {
+      showToast(err instanceof Error ? `Kunne ikke behandle billedet: ${err.message}` : 'Kunne ikke behandle billedet.', 'error');
+      setImageUploadMeta(null);
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   const validIngredients = ingredients.filter((i) => i.name.trim().length > 0);
-  const canSave = name.trim().length > 0 && validIngredients.length > 0;
+  const canSave = name.trim().length > 0 && validIngredients.length > 0 && !isUploadingImage;
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -284,34 +314,56 @@ export default function RecipesPage() {
 
           <div className="mt-4">
             <label className="text-xs font-semibold text-stone-500 dark:text-stone-400">Billede</label>
-            <div className="mt-1 flex items-center gap-3">
+            <div className="mt-1 flex flex-wrap items-center gap-3">
               {imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={imageUrl} alt="" className="h-20 w-20 rounded-xl object-cover" />
+                <img src={imageUrl} alt="" className="h-20 w-20 rounded-xl border border-stone-200 object-cover dark:border-stone-700" />
               ) : (
                 <div className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-stone-200 text-stone-300 dark:border-stone-700 dark:text-stone-600">
                   <ImagePlus size={22} />
                 </div>
               )}
-              <label className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700">
-                {isUploadingImage ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
-                {isUploadingImage ? 'Uploader...' : imageUrl ? 'Skift billede' : 'Upload billede'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={isUploadingImage}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleImageSelect(file);
-                  }}
-                />
-              </label>
-              {imageUrl && (
-                <button type="button" onClick={() => setImageUrl(null)} className="text-xs font-medium text-stone-400 hover:text-red-500 dark:text-stone-500 dark:hover:text-red-400">
-                  Fjern
-                </button>
-              )}
+              <div className="min-w-52 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700">
+                    {isUploadingImage ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
+                    {isUploadingImage ? 'Uploader...' : imageUrl ? 'Skift billede' : 'Upload billede'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      disabled={isUploadingImage}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.currentTarget.value = '';
+                        if (file) handleImageSelect(file);
+                      }}
+                    />
+                  </label>
+                  {imageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageUrl(null);
+                        setImageUploadMeta(null);
+                      }}
+                      className="flex items-center gap-1.5 rounded-xl border border-stone-200 px-3 py-2 text-sm font-medium text-stone-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-stone-700 dark:text-stone-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                    >
+                      <X size={14} />
+                      Fjern
+                    </button>
+                  )}
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-stone-500 dark:text-stone-400">
+                  {isUploadingImage
+                    ? 'Komprimerer og uploader billedet...'
+                    : imageUploadMeta
+                      ? `${imageUploadMeta.name} · ${formatFileSize(imageUploadMeta.size)}`
+                      : imageUrl
+                        ? 'Billedet er gemt på opskriften.'
+                        : 'JPG, PNG eller WebP. Maks 10 MB.'}
+                </p>
+              </div>
             </div>
           </div>
 
