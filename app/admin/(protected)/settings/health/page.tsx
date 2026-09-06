@@ -19,6 +19,9 @@ import {
   getDataRetentionPreview,
   type DataRetentionPreview,
 } from '@/lib/data-retention';
+import { redirect } from 'next/navigation';
+import { requireAdmin } from '@/lib/admin-auth';
+import { OWNER_ONLY } from '@/lib/admin-roles';
 
 type CheckStatus = 'ok' | 'missing' | 'warning';
 
@@ -230,6 +233,12 @@ function RetentionPreviewPanel({ preview }: { preview: DataRetentionPreview | nu
 }
 
 export default async function EnvironmentHealthPage() {
+  // Siden er owner-only. Middleware afviser allerede de øvrige roller, men denne side
+  // henter data med service role-nøglen, som går uden om RLS — så databasen fanger ikke
+  // en rolle der alligevel nåede hertil. Rollen håndhæves derfor også her.
+  const auth = await requireAdmin(OWNER_ONLY);
+  if (!auth.ok) redirect('/admin/dashboard');
+
   const resendSetup = await getResendSetupStatus();
   const envChecks: Check[] = [
     envCheck('NEXT_PUBLIC_SUPABASE_URL', 'Supabase URL'),

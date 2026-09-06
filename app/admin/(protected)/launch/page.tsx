@@ -18,6 +18,9 @@ import {
 import { createClient } from '@/lib/supabase/server';
 import { getResendSetupStatus } from '@/lib/resend';
 import { siteUrl } from '@/lib/site-config';
+import { redirect } from 'next/navigation';
+import { requireAdmin } from '@/lib/admin-auth';
+import { OWNER_ONLY } from '@/lib/admin-roles';
 
 type CheckStatus = 'ready' | 'warning' | 'critical';
 
@@ -158,6 +161,11 @@ function SummaryCard({
 }
 
 export default async function LaunchPage() {
+  // Siden er owner-only, og middleware afviser de øvrige roller. Tjekket gentages her,
+  // så adgangen ikke afhænger af ét lag alene.
+  const auth = await requireAdmin(OWNER_ONLY);
+  if (!auth.ok) redirect('/admin/dashboard');
+
   const supabase = await createClient();
   const resendSetup = await getResendSetupStatus();
   const today = todayStr();

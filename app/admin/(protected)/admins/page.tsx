@@ -1,6 +1,8 @@
 import { ShieldCheck } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { redirect } from 'next/navigation';
 import { requireAdmin } from '@/lib/admin-auth';
+import { OWNER_ONLY } from '@/lib/admin-roles';
 import { InviteAdminForm } from '@/components/invite-admin-form';
 import { AdminUsersTable } from '@/components/admin-users-table';
 
@@ -9,10 +11,12 @@ export const metadata = {
 };
 
 export default async function AdminsPage() {
-  // Kun ejere må invitere. Serveren håndhæver det i /api/invite-admin — her skjuler vi
-  // blot formularen, så UI'et ikke tilbyder noget der alligevel bliver afvist.
-  const auth = await requireAdmin();
-  const canInvite = auth.ok && auth.admin.role === 'owner';
+  // Hele siden er owner-only. Tjekket lå tidligere kun i middleware, mens siden selv
+  // nøjedes med requireAdmin() uden rolle — og da den henter med service role-nøglen, der
+  // går uden om RLS, var middleware det eneste der holdt en editor eller support ude af
+  // admin-listen med emailadresser. Rollen håndhæves derfor også her.
+  const auth = await requireAdmin(OWNER_ONLY);
+  if (!auth.ok) redirect('/admin/dashboard');
 
   const supabase = createAdminClient();
 
@@ -41,15 +45,9 @@ export default async function AdminsPage() {
         </div>
       </div>
 
-      {canInvite ? (
-        <InviteAdminForm />
-      ) : (
-        <p className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 text-sm text-stone-500 shadow-sm shadow-stone-900/5 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400">
-          Kun ejere kan invitere nye admins.
-        </p>
-      )}
+      <InviteAdminForm />
 
-      <AdminUsersTable initialRows={admins} currentAdminId={auth.ok ? auth.admin.id : null} canManage={canInvite} />
+      <AdminUsersTable initialRows={admins} currentAdminId={auth.admin.id} canManage />
     </div>
   );
 }
