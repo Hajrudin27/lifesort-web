@@ -34,6 +34,7 @@ import { PublicFooter } from '@/components/public-footer';
 import { TableOfContents } from '@/components/table-of-contents';
 import { BackToTop } from '@/components/back-to-top';
 import { ScrollReveal } from '@/components/scroll-reveal';
+import { LegalSection, LegalTable } from '@/components/legal-section';
 import { createPageMetadata } from '@/lib/seo';
 
 export const metadata = createPageMetadata({
@@ -281,80 +282,6 @@ const storageItems = [
   },
 ];
 
-const sectionTints = {
-  rose: 'bg-rose-100 text-rose-600',
-  emerald: 'bg-emerald-100 text-emerald-600',
-  amber: 'bg-amber-100 text-amber-600',
-  sky: 'bg-sky-100 text-sky-600',
-  violet: 'bg-violet-100 text-violet-600',
-  stone: 'bg-stone-100 text-stone-600',
-} as const;
-
-function PolicySection({
-  id,
-  number,
-  icon: Icon,
-  title,
-  tint = 'stone',
-  children,
-}: {
-  id: string;
-  number: number;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
-  title: string;
-  tint?: keyof typeof sectionTints;
-  children: React.ReactNode;
-}) {
-  return (
-    <ScrollReveal>
-      <section id={id} className="scroll-mt-24 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm shadow-stone-900/5 sm:p-7">
-        <div className="flex items-start gap-4">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${sectionTints[tint]}`}>
-            <Icon className="h-5 w-5" strokeWidth={2.2} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-400">Afsnit {number}</p>
-            <h2 className="font-display mt-0.5 text-xl font-semibold leading-snug text-stone-900">{title}</h2>
-          </div>
-        </div>
-        <div className="mt-5 flex flex-col gap-3 text-sm leading-relaxed text-stone-600">{children}</div>
-      </section>
-    </ScrollReveal>
-  );
-}
-
-function PolicyTable({ headers, rows }: { headers: string[]; rows: React.ReactNode[][] }) {
-  return (
-    <div className="-mx-1 overflow-x-auto">
-      <table className="w-full min-w-[34rem] border-collapse text-left text-sm">
-        <thead>
-          <tr className="border-b border-stone-200">
-            {headers.map((header) => (
-              <th key={header} className="px-2 pb-2 text-xs font-bold uppercase tracking-wider text-stone-400">
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-stone-100">
-          {rows.map((row, index) => (
-            <tr key={index} className="align-top">
-              {row.map((cell, cellIndex) => (
-                <td
-                  key={cellIndex}
-                  className={`px-2 py-3 leading-relaxed ${cellIndex === 0 ? 'font-semibold text-stone-900' : 'text-stone-600'}`}
-                >
-                  {cell}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 export default function PrivacyPage() {
   return (
     <>
@@ -438,7 +365,7 @@ export default function PrivacyPage() {
             <TableOfContents items={toc} />
 
             <div className="flex min-w-0 flex-1 flex-col gap-4">
-              <PolicySection id="kort-fortalt" number={1} icon={Sparkles} title="Kort fortalt" tint="emerald">
+              <LegalSection id="kort-fortalt" number={1} icon={Sparkles} title="Kort fortalt" tint="emerald">
                 <p>
                   Denne politik beskriver, hvordan LifeSort behandler personoplysninger i appen og på denne hjemmeside. Opsummeringen her er ikke jura — den fulde tekst nedenfor er den, der gælder.
                 </p>
@@ -458,9 +385,9 @@ export default function PrivacyPage() {
                     </li>
                   ))}
                 </ul>
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="dataansvarlig" number={2} icon={Building2} title="Dataansvarlig og kontakt" tint="stone">
+              <LegalSection id="dataansvarlig" number={2} icon={Building2} title="Dataansvarlig og kontakt" tint="stone">
                 <p>
                   LifeSort er dataansvarlig for behandlingen af dine personoplysninger i forbindelse med din brug af appen og denne hjemmeside. Det betyder, at vi bestemmer, hvorfor og hvordan dine oplysninger behandles — og at det er os, du kan holde ansvarlig.
                 </p>
@@ -477,26 +404,26 @@ export default function PrivacyPage() {
                     Vi har ikke pligt til at have en databeskyttelsesrådgiver (DPO), og vi har ikke udpeget en. Henvendelser om persondata behandles af teamet bag LifeSort direkte.
                   </p>
                 </div>
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="indsamling" number={3} icon={Database} title="Hvilke oplysninger vi behandler" tint="sky">
+              <LegalSection id="indsamling" number={3} icon={Database} title="Hvilke oplysninger vi behandler" tint="sky">
                 <p>
                   Langt det meste af det, vi behandler, er noget du selv skriver ind i appen. Hvad der bliver behandlet, afhænger derfor af hvilke moduler du bruger — bruger du ikke cyklus-modulet, findes der ingen cyklusdata.
                 </p>
-                <PolicyTable
+                <LegalTable
                   headers={['Kategori', 'Eksempler', 'Kilde']}
                   rows={dataCategories.map((row) => [row.category, row.examples, row.source])}
                 />
                 <p className="text-xs text-stone-500">
                   Vi beder aldrig om CPR-nummer, betalingskortoplysninger eller adgang til din kontakt- eller kalenderdata for at kunne levere appens funktioner.
                 </p>
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="formaal" number={4} icon={Scale} title="Formål og retsgrundlag" tint="violet">
+              <LegalSection id="formaal" number={4} icon={Scale} title="Formål og retsgrundlag" tint="violet">
                 <p>
                   Vi må kun behandle personoplysninger, hvis vi har et lovligt grundlag for det. Her står grundlaget for hvert formål, så du kan se præcis hvad der hviler på en aftale, hvad der hviler på dit samtykke, og hvad der hviler på en interesseafvejning.
                 </p>
-                <PolicyTable
+                <LegalTable
                   headers={['Formål', 'Retsgrundlag', 'GDPR']}
                   rows={legalBases.map((row) => [
                     row.purpose,
@@ -509,9 +436,9 @@ export default function PrivacyPage() {
                 <p className="text-xs text-stone-500">
                   Hviler en behandling på legitim interesse, har vi vurderet, at vores interesse i fx at holde tjenesten kørende ikke vejer tungere end dine rettigheder. Du kan altid gøre indsigelse mod den slags behandling.
                 </p>
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="helbredsdata" number={5} icon={HeartPulse} title="Særligt om cyklus- og helbredsdata" tint="rose">
+              <LegalSection id="helbredsdata" number={5} icon={HeartPulse} title="Særligt om cyklus- og helbredsdata" tint="rose">
                 <p>
                   Oplysninger om menstruationscyklus og symptomer er helbredsoplysninger og dermed en <strong className="font-semibold text-stone-900">særlig kategori af personoplysninger</strong> efter GDPR artikel 9. De behandles strengere end resten:
                 </p>
@@ -532,13 +459,13 @@ export default function PrivacyPage() {
                 <p className="rounded-xl border border-rose-100 bg-rose-50/70 p-4 text-xs leading-relaxed text-stone-600">
                   Trækker du samtykket tilbage, påvirker det ikke lovligheden af den behandling, der er sket indtil da — men behandlingen stopper fremadrettet, og data fjernes.
                 </p>
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="databehandlere" number={6} icon={Server} title="Databehandlere og deling" tint="amber">
+              <LegalSection id="databehandlere" number={6} icon={Server} title="Databehandlere og deling" tint="amber">
                 <p>
                   Vi deler ikke dine oplysninger med tredjeparter til markedsføringsformål, og vi sælger dem ikke. Dine data ligger hos et lille antal leverandører, der behandler dem efter vores instruks som databehandlere, og som er bundet af en databehandleraftale. Alle behandler data inden for EU/EØS.
                 </p>
-                <PolicyTable
+                <LegalTable
                   headers={['Leverandør', 'Rolle', 'Hvad de behandler']}
                   rows={processors.map((row) => [row.name, row.role, row.detail])}
                 />
@@ -554,9 +481,9 @@ export default function PrivacyPage() {
                     </p>
                   </div>
                 </div>
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="sikkerhed" number={7} icon={ShieldCheck} title="Sådan beskytter vi dine data" tint="emerald">
+              <LegalSection id="sikkerhed" number={7} icon={ShieldCheck} title="Sådan beskytter vi dine data" tint="emerald">
                 <p>
                   Sikkerhed er ikke et løfte i teksten her — det er noget, der skal kunne holde, når nogen prøver. De vigtigste foranstaltninger:
                 </p>
@@ -577,19 +504,19 @@ export default function PrivacyPage() {
                 <p className="text-xs text-stone-500">
                   Formularerne på hjemmesiden er desuden beskyttet mod misbrug med hastighedsbegrænsning pr. IP-adresse og emailadresse, så de ikke kan bruges til at sende uønsket post til andre.
                 </p>
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="opbevaring" number={8} icon={CalendarClock} title="Hvor længe vi gemmer dine data" tint="stone">
+              <LegalSection id="opbevaring" number={8} icon={CalendarClock} title="Hvor længe vi gemmer dine data" tint="stone">
                 <p>
                   Vi gemmer ikke oplysninger længere end nødvendigt. En automatisk oprydning kører hver nat og fjerner det, der har tjent sit formål — det er ikke noget, nogen skal huske at gøre manuelt.
                 </p>
-                <PolicyTable
+                <LegalTable
                   headers={['Data', 'Opbevaringsperiode', 'Bemærkning']}
                   rows={retention.map((row) => [row.data, row.period, row.note])}
                 />
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="rettigheder" number={9} icon={Gavel} title="Dine rettigheder" tint="violet">
+              <LegalSection id="rettigheder" number={9} icon={Gavel} title="Dine rettigheder" tint="violet">
                 <p>
                   Efter databeskyttelsesforordningen har du en række rettigheder over dine egne oplysninger. De er gratis at bruge, og du skal ikke begrunde, hvorfor du gør det.
                 </p>
@@ -616,9 +543,9 @@ export default function PrivacyPage() {
                   </Link>{' '}
                   for at bruge en rettighed. Vi svarer inden for en måned — og hurtigst muligt, hvis det haster.
                 </p>
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="sletning" number={10} icon={Trash2} title="Sådan henter eller sletter du dine data" tint="rose">
+              <LegalSection id="sletning" number={10} icon={Trash2} title="Sådan henter eller sletter du dine data" tint="rose">
                 <p>
                   To af rettighederne behøver du slet ikke spørge om lov til at bruge. De ligger inde i appen, så du kan gøre det, når det passer dig:
                 </p>
@@ -645,49 +572,49 @@ export default function PrivacyPage() {
                 <p className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-xs leading-relaxed text-stone-600">
                   Sletningen kan ikke fortrydes, og vi opbevarer ikke en skyggekopi bagefter. Har du brug for dine data, så hent dem, <em>inden</em> du sletter kontoen. Vil du hellere have os til at gøre det, kan du bede om det via supportformularen.
                 </p>
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="cookies" number={11} icon={Cookie} title="Cookies og lokal lagring" tint="amber">
+              <LegalSection id="cookies" number={11} icon={Cookie} title="Cookies og lokal lagring" tint="amber">
                 <p>
                   Hjemmesiden bruger kun det, der er nødvendigt for at den virker. Vi bruger ikke cookies til sporing, profilering eller markedsføring, og vi deler ikke data med annoncenetværk.
                 </p>
-                <PolicyTable
+                <LegalTable
                   headers={['Navn', 'Type', 'Formål']}
                   rows={storageItems.map((row) => [row.name, row.type, row.purpose])}
                 />
                 <p className="text-xs text-stone-500">
                   Fordi vi udelukkende bruger nødvendige cookies, kræver de ikke dit samtykke. Cookiebeskeden på siden er derfor en oplysning, ikke et valg, du skal tage stilling til.
                 </p>
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="boern" number={12} icon={Baby} title="Børn og unge" tint="sky">
+              <LegalSection id="boern" number={12} icon={Baby} title="Børn og unge" tint="sky">
                 <p>
                   LifeSort er lavet til voksne, der vil have styr på hverdagen, og henvender sig ikke til børn under 13 år. Vi indsamler ikke bevidst oplysninger om børn under den alder.
                 </p>
                 <p>
                   Bliver vi opmærksomme på, at vi har oplysninger om et barn under 13 år uden fornødent samtykke fra en forælder, sletter vi dem. Er du forælder og har en mistanke om det, så skriv til os via supportformularen.
                 </p>
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="profilering" number={13} icon={BrainCircuit} title="Profilering og automatiske afgørelser" tint="stone">
+              <LegalSection id="profilering" number={13} icon={BrainCircuit} title="Profilering og automatiske afgørelser" tint="stone">
                 <p>
                   Vi træffer ingen afgørelser om dig alene på grundlag af automatisk behandling, og vi laver ingen profilering med retsvirkning eller tilsvarende væsentlig betydning for dig.
                 </p>
                 <p>
                   Appen regner naturligvis på dine egne tal — den forudsiger fx din næste cyklus eller viser, hvor dit budget skrider. Det sker udelukkende for at vise dig dine egne data tilbage, det bliver på din konto, og det bruges ikke til at vurdere dig eller til at målrette noget mod dig.
                 </p>
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="brud" number={14} icon={TriangleAlert} title="Hvis der sker et sikkerhedsbrud" tint="amber">
+              <LegalSection id="brud" number={14} icon={TriangleAlert} title="Hvis der sker et sikkerhedsbrud" tint="amber">
                 <p>
                   Skulle der ske et brud på persondatasikkerheden, anmelder vi det til Datatilsynet uden unødig forsinkelse og senest 72 timer efter, at vi er blevet opmærksomme på det, medmindre bruddet er usandsynligt at medføre en risiko for dig.
                 </p>
                 <p>
                   Indebærer bruddet en høj risiko for dine rettigheder, giver vi dig direkte besked — med hvad der er sket, hvilke data det angår, og hvad du selv bør gøre.
                 </p>
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="klage" number={15} icon={Landmark} title="Klage til Datatilsynet" tint="stone">
+              <LegalSection id="klage" number={15} icon={Landmark} title="Klage til Datatilsynet" tint="stone">
                 <p>
                   Er du utilfreds med, hvordan vi behandler dine oplysninger, vil vi gerne høre det først — så kan vi som regel rette det hurtigt. Du har dog altid ret til at klage direkte til Datatilsynet:
                 </p>
@@ -708,9 +635,9 @@ export default function PrivacyPage() {
                     </a>
                   </p>
                 </div>
-              </PolicySection>
+              </LegalSection>
 
-              <PolicySection id="aendringer" number={16} icon={RefreshCw} title="Ændringer i denne politik" tint="stone">
+              <LegalSection id="aendringer" number={16} icon={RefreshCw} title="Ændringer i denne politik" tint="stone">
                 <p>
                   Vi opdaterer politikken, når appen ændrer sig — nye moduler, nye leverandører eller nye måder at behandle data på. Datoen og versionsnummeret øverst på siden viser, hvornår teksten sidst blev ændret.
                 </p>
@@ -723,7 +650,7 @@ export default function PrivacyPage() {
                     Nuværende version: <strong className="font-semibold text-stone-900">{POLICY_VERSION}</strong> · gældende fra {lastUpdatedLabel}
                   </span>
                 </div>
-              </PolicySection>
+              </LegalSection>
 
               <ScrollReveal>
                 <div className="flex flex-col gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-stone-50 to-amber-50 p-6 sm:flex-row sm:items-center sm:justify-between">
